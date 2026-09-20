@@ -1,0 +1,278 @@
+@use "sass:color";
+@use "./_variables.scss" as defaults;
+@use "./themes/dark/variables.scss" as dark;
+@use "./themes/light/variables.scss" as light;
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: "IBM Plex Sans", "Helvetica Neue", sans-serif;
+  font-size: 13px;
+}
+
+@mixin tokens($bg, $base, $primary, $secondary, $success, $warning, $danger) {
+  --theme-bg: #{$bg};
+  --theme-base: #{$base};
+  --theme-primary: #{$primary};
+  --theme-secondary: #{$secondary};
+  --text-dark: #{rgba($base, 0.87)};
+  --text: #{rgba($base, 0.67)};
+  --border-color: #{rgba($base, 0.12)};
+  --brand-success: #{$success};
+  --brand-warning: #{$warning};
+  --brand-danger: #{$danger};
+  --query-editor-bg: #{color.adjust($bg, $lightness: -4%)};
+  --sidebar-bg: #{color.adjust($bg, $lightness: -2%)};
+  --bks-theme-bg: #{$bg};
+  --bks-theme-base: #{$base};
+  --bks-theme-primary: #{$primary};
+  --bks-theme-secondary: #{$secondary};
+}
+
+body.theme-dark {
+  @include tokens(
+    dark.$theme-bg,
+    dark.$theme-base,
+    dark.$theme-primary,
+    dark.$theme-secondary,
+    dark.$brand-success,
+    dark.$brand-warning,
+    dark.$brand-danger
+  );
+  background: var(--theme-bg);
+  color: var(--text-dark);
+}
+
+body.theme-light {
+  @include tokens(
+    light.$theme-bg,
+    light.$theme-base,
+    light.$theme-primary,
+    light.$theme-secondary,
+    light.$brand-success,
+    light.$brand-warning,
+    light.$brand-danger
+  );
+  background: var(--theme-bg);
+  color: var(--text-dark);
+}
+
+body.theme-system {
+  @media (prefers-color-scheme: dark) {
+    @include tokens(
+      dark.$theme-bg,
+      dark.$theme-base,
+      dark.$theme-primary,
+      dark.$theme-secondary,
+      dark.$brand-success,
+      dark.$brand-warning,
+      dark.$brand-danger
+    );
+    background: var(--theme-bg);
+    color: var(--text-dark);
+  }
+  @media (prefers-color-scheme: light) {
+    @include tokens(
+      light.$theme-bg,
+      light.$theme-base,
+      light.$theme-primary,
+      light.$theme-secondary,
+      light.$brand-success,
+      light.$brand-warning,
+      light.$brand-danger
+    );
+    background: var(--theme-bg);
+    color: var(--text-dark);
+  }
+}
+
+.graphite-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.titlebar {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--sidebar-bg);
+}
+
+.titlebar strong {
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 280px 1fr 320px;
+  min-height: 0;
+  flex: 1;
+}
+
+.sidebar,
+.json-pane,
+.main {
+  min-height: 0;
+  overflow: auto;
+}
+
+.sidebar {
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border-color);
+  padding: 12px;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  background: var(--query-editor-bg);
+}
+
+.json-pane {
+  border-left: 1px solid var(--border-color);
+  padding: 12px;
+  background: var(--sidebar-bg);
+}
+
+.connection {
+  max-width: 720px;
+  margin: 48px auto;
+  padding: 24px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--sidebar-bg);
+}
+
+label {
+  display: block;
+  margin: 8px 0 4px;
+  color: var(--text);
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+  color: inherit;
+  background: var(--theme-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+
+input,
+select {
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+}
+
+textarea {
+  width: 100%;
+  min-height: 160px;
+  padding: 8px;
+  resize: vertical;
+  background: var(--query-editor-bg);
+}
+
+button {
+  height: 32px;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+button.primary {
+  background: var(--theme-primary);
+  color: var(--theme-bg);
+  border-color: var(--theme-primary);
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--border-color);
+  padding: 6px 8px;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+th {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.table-wrap {
+  flex: 1;
+  overflow: auto;
+}
+
+.statusbar {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  border-top: 1px solid var(--border-color);
+  color: var(--text);
+}
+
+.entity {
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.entity:hover {
+  color: var(--theme-primary);
+}
+
+.error {
+  color: var(--brand-danger);
+}
+
+.ok {
+  color: var(--brand-success);
+}
+
+.filter-row {
+  display: grid;
+  grid-template-columns: 1fr 110px 1fr 32px;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+}
+
+.saved {
+  margin-top: 16px;
+}

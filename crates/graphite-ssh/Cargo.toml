@@ -1,0 +1,14 @@
+[package]
+name = "graphite-ssh"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+graphite-core = { path = "../graphite-core" }
+anyhow.workspace = true
+russh = "0.45"
+russh-keys = "0.45"
+tokio.workspace = true
+tracing.workspace = true
+async-trait.workspace = true

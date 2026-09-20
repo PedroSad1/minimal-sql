@@ -1,0 +1,29 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/graphite-core",
+  "crates/graphite-drivers",
+  "crates/graphite-appdb",
+  "crates/graphite-ssh",
+  "apps/desktop/src-tauri",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+authors = ["Pedro Sad"]
+
+[workspace.dependencies]
+anyhow = "1"
+async-trait = "0.1"
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+tracing = "0.1"
+csv = "1"
+calamine = "0.26"
+rusqlite = { version = "0.32", features = ["bundled"] }

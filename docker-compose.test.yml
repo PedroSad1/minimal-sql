@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: graphite
+      POSTGRES_PASSWORD: graphite
+      POSTGRES_DB: graphite
+    ports:
+      - "55432:5432"
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: graphite
+      MYSQL_DATABASE: graphite
+      MYSQL_USER: graphite
+      MYSQL_PASSWORD: graphite
+    ports:
+      - "53306:3306"
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "56379:6379"
+  sqlserver:
+    image: mcr.microsoft.com/azure-sql-edge:latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Graphite_123"
+    ports:
+      - "51433:1433"
