@@ -50,5 +50,5 @@ GRAPHITE_DOCKER=1 cargo test -p graphite-drivers -- --ignored --nocapture
 Push with the personal SSH host:
 
 ```bash
-git remote add origin git@github.com-personal:PedroSad1/graphite.git
+git remote add origin git@github.com-personal:PedroSad1/minimal-sql.git
 ```
