@@ -20,6 +20,16 @@ is not in this repo. The desktop UI is a small Vue shell over Rust drivers.
 
 This repository does **not** contain `src-commercial`.
 
+## Install
+
+Download a file from [Releases](https://github.com/PedroSad1/minimal-sql/releases). Open that file. A terminal is not required.
+
+- macOS: open the `.dmg` and drag Minimal SQL to Applications.
+- Windows: open the setup `.exe`.
+- Linux: open the `.deb` on Ubuntu or Debian, or open the AppImage.
+
+The first open can show a system warning. That warning stays until the build is signed with an Apple certificate and a Windows certificate.
+
 ## Dev
 
 Rust 1.98+ and Node 24+ are required.
