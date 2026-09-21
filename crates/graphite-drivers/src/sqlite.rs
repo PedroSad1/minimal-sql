@@ -140,12 +140,15 @@ impl DatabaseClient for SqliteClient {
         let limit = limit_sql(dialect, opts.limit.max(1), opts.offset.max(0));
         let sql = format!("SELECT {cols} FROM {table}{}{order}{limit}", where_clause.sql);
         let count_sql = format!("SELECT COUNT(*) FROM {table}{}", where_clause.sql);
+        let skip_count = opts.skip_count;
         let conn = self.conn()?;
         let params = where_clause.params.clone();
         tokio::task::spawn_blocking(move || {
             let result = run_sql_with_params(&conn, &sql, &params)?;
             let first = result.into_iter().next().unwrap_or_default();
-            let total = {
+            let total = if skip_count {
+                first.row_count as i64
+            } else {
                 let conn = conn.lock().map_err(|e| GraphiteError::msg(e.to_string()))?;
                 let mut stmt = conn
                     .prepare(&count_sql)
@@ -267,6 +270,7 @@ impl SqliteClient {
                         name: row.get(0)?,
                         schema: Some("main".into()),
                         entity_type: kind.clone(),
+                        parent: None,
                     })
                 })
                 .map_err(|e| GraphiteError::msg(e.to_string()))?;
@@ -387,16 +391,19 @@ mod tests {
                         field: "amount".into(),
                         op: ">".into(),
                         value: json!(1),
+                        join: String::new(),
                     },
                     TableFilter {
                         field: "amount".into(),
                         op: "<".into(),
                         value: json!(9),
+                        join: String::new(),
                     },
                     TableFilter {
                         field: "name".into(),
                         op: "like".into(),
                         value: json!("%b%"),
+                        join: String::new(),
                     },
                 ],
                 order_by: vec![OrderBy {

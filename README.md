@@ -1,21 +1,22 @@
-# Graphite
+# Minimal SQL
 
-SQL client forked from Beekeeper Studio **Community** (GPLv3), rewritten with
-Tauri 2 + Rust. All Graphite features are free. There is no license key.
+SQL client **inspired by** Beekeeper Studio Community (GPLv3), rewritten
+from scratch with Tauri 2 + Rust. All Minimal SQL features are free. There is
+no license key.
 
-Graphite is an independent project. It is not Beekeeper Studio.
+Minimal SQL is an independent project. It is not Beekeeper Studio. This git
+tree is not a fork of `beekeeper-studio/beekeeper-studio`.
 
-## What is in this repo
+## What was taken from Community (ideas, not a file copy)
 
-- Vue UI shell with the Community layout tokens (black / gray palette)
-- Tauri commands that keep the `conn/*` and `query/*` names
-- Rust drivers for Community databases: SQLite, PostgreSQL (and CockroachDB,
-  Redshift, GreengageDB), MySQL (and MariaDB, TiDB, StarRocks, Bedrock),
-  SQL Server, Redis, BigQuery
-- SSH tunnel (`russh`)
-- Local appdb (`rusqlite`)
-- Extras written from public crates: N+ filters, JSON viewer, editable
-  results, execute-to-file, import CSV/JSON/XLSX
+- Database list (SQLite, PostgreSQL family, MySQL family, SQL Server, Redis, BigQuery)
+- IPC-style command names (`conn/*`, `query/*`)
+- Layout tokens (sidebar + SQL editor + results), with a black / gray palette
+
+## What was not ported
+
+Beekeeper `apps/studio` (TabQueryEditor, SqlTextEditor, Tabulator, Vuex tabs)
+is not in this repo. The desktop UI is a small Vue shell over Rust drivers.
 
 This repository does **not** contain `src-commercial`.
 

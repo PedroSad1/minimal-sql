@@ -21,6 +21,33 @@ async fn expect_connect(config: ConnectionConfig) {
 }
 
 #[tokio::test]
+async fn postgres_local_select_1() {
+    let mut client = open_client(ConnectionConfig {
+        connection_type: "postgresql".into(),
+        host: Some("127.0.0.1".into()),
+        port: Some(5432),
+        user: Some("postgres".into()),
+        password: Some("postgres".into()),
+        default_database: Some("allu".into()),
+        ..Default::default()
+    })
+    .await
+    .expect("open");
+    match client.connect().await {
+        Ok(()) => {}
+        Err(err) if err.to_string().contains("Connection refused") => return,
+        Err(err) => panic!("connect: {err}"),
+    }
+    let results = client
+        .execute_query("select 1 as n")
+        .await
+        .expect("query");
+    let first = results.first().expect("result");
+    assert_eq!(first.columns, vec!["n"]);
+    assert_eq!(first.rows[0][0], serde_json::json!("1"));
+}
+
+#[tokio::test]
 #[ignore]
 async fn postgres_docker() {
     if !docker_on() {

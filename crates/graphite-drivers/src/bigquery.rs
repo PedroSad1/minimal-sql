@@ -90,6 +90,7 @@ impl DatabaseClient for BigQueryClient {
                     name,
                     schema: Some(dataset.clone()),
                     entity_type: "table".into(),
+                    parent: None,
                 })
             })
             .collect())

@@ -1,7 +1,7 @@
-@use "sass:color";
 @use "./_variables.scss" as defaults;
 @use "./themes/dark/variables.scss" as dark;
 @use "./themes/light/variables.scss" as light;
+@use "./community.scss";
 
 *,
 *::before,
@@ -21,26 +21,64 @@ body {
   font-size: 13px;
 }
 
-@mixin tokens($bg, $base, $primary, $secondary, $success, $warning, $danger) {
+@mixin tokens(
+  $bg,
+  $base,
+  $primary,
+  $secondary,
+  $success,
+  $warning,
+  $danger,
+  $query-bg,
+  $sidebar,
+  $text-strong,
+  $text-muted,
+  $border,
+  $keyword,
+  $string,
+  $number,
+  $comment,
+  $btn-fg,
+  $line
+) {
   --theme-bg: #{$bg};
   --theme-base: #{$base};
   --theme-primary: #{$primary};
   --theme-secondary: #{$secondary};
-  --text-dark: #{rgba($base, 0.87)};
-  --text: #{rgba($base, 0.67)};
-  --border-color: #{rgba($base, 0.12)};
+  --text-dark: #{$text-strong};
+  --text: #{$text-muted};
+  --border-color: #{$border};
   --brand-success: #{$success};
   --brand-warning: #{$warning};
   --brand-danger: #{$danger};
-  --query-editor-bg: #{color.adjust($bg, $lightness: -4%)};
-  --sidebar-bg: #{color.adjust($bg, $lightness: -2%)};
+  --query-editor-bg: #{$query-bg};
+  --sidebar-bg: #{$sidebar};
+  --statusbar-bg: #{$bg};
+  --btn-primary-fg: #{$btn-fg};
   --bks-theme-bg: #{$bg};
   --bks-theme-base: #{$base};
   --bks-theme-primary: #{$primary};
   --bks-theme-secondary: #{$secondary};
+  --bks-query-editor-bg: #{$query-bg};
+  --bks-text-editor-bg-color: #{$query-bg};
+  --bks-text-editor-fg-color: #{$text-strong};
+  --bks-text-editor-gutter-bg-color: #{$query-bg};
+  --bks-text-editor-gutter-border-color: transparent;
+  --bks-text-editor-linenumber-fg-color: #{$line};
+  --bks-text-editor-linenumber-active-fg-color: #{$text-strong};
+  --bks-text-editor-activeline-bg-color: color-mix(in srgb, #{$base} 8%, transparent);
+  --bks-text-editor-activeline-gutter-bg-color: color-mix(in srgb, #{$base} 8%, transparent);
+  --bks-text-editor-keyword-fg-color: #{$keyword};
+  --bks-text-editor-string-fg-color: #{$string};
+  --bks-text-editor-number-fg-color: #{$number};
+  --bks-text-editor-variable-fg-color: #{$string};
+  --bks-text-editor-comment-fg-color: #{$comment};
+  --bks-text-editor-selected-bg-color: #{$border};
+  --bks-text-editor-cursor-bg-color: #{$text-strong};
+  --bks-text-editor-focused-outline-color: transparent;
 }
 
-body.theme-dark {
+@mixin dark-tokens {
   @include tokens(
     dark.$theme-bg,
     dark.$theme-base,
@@ -48,13 +86,22 @@ body.theme-dark {
     dark.$theme-secondary,
     dark.$brand-success,
     dark.$brand-warning,
-    dark.$brand-danger
+    dark.$brand-danger,
+    dark.$query-editor-bg,
+    dark.$sidebar-bg,
+    dark.$text-dark,
+    dark.$text,
+    dark.$border-color,
+    dark.$sql-keyword,
+    dark.$sql-string,
+    dark.$sql-number,
+    dark.$sql-comment,
+    dark.$btn-fg,
+    dark.$line-number
   );
-  background: var(--theme-bg);
-  color: var(--text-dark);
 }
 
-body.theme-light {
+@mixin light-tokens {
   @include tokens(
     light.$theme-bg,
     light.$theme-base,
@@ -62,217 +109,46 @@ body.theme-light {
     light.$theme-secondary,
     light.$brand-success,
     light.$brand-warning,
-    light.$brand-danger
+    light.$brand-danger,
+    light.$query-editor-bg,
+    light.$sidebar-bg,
+    light.$text-dark,
+    light.$text,
+    light.$border-color,
+    light.$sql-keyword,
+    light.$sql-string,
+    light.$sql-number,
+    light.$sql-comment,
+    light.$btn-fg,
+    light.$line-number
   );
+}
+
+body.theme-dark {
+  @include dark-tokens;
   background: var(--theme-bg);
   color: var(--text-dark);
+  color-scheme: dark;
+}
+
+body.theme-light {
+  @include light-tokens;
+  background: var(--theme-bg);
+  color: var(--text-dark);
+  color-scheme: light;
 }
 
 body.theme-system {
   @media (prefers-color-scheme: dark) {
-    @include tokens(
-      dark.$theme-bg,
-      dark.$theme-base,
-      dark.$theme-primary,
-      dark.$theme-secondary,
-      dark.$brand-success,
-      dark.$brand-warning,
-      dark.$brand-danger
-    );
+    @include dark-tokens;
     background: var(--theme-bg);
     color: var(--text-dark);
+    color-scheme: dark;
   }
   @media (prefers-color-scheme: light) {
-    @include tokens(
-      light.$theme-bg,
-      light.$theme-base,
-      light.$theme-primary,
-      light.$theme-secondary,
-      light.$brand-success,
-      light.$brand-warning,
-      light.$brand-danger
-    );
+    @include light-tokens;
     background: var(--theme-bg);
     color: var(--text-dark);
+    color-scheme: light;
   }
-}
-
-.graphite-shell {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.titlebar {
-  height: 38px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 12px;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--sidebar-bg);
-}
-
-.titlebar strong {
-  letter-spacing: 0.08em;
-  font-weight: 600;
-}
-
-.layout {
-  display: grid;
-  grid-template-columns: 280px 1fr 320px;
-  min-height: 0;
-  flex: 1;
-}
-
-.sidebar,
-.json-pane,
-.main {
-  min-height: 0;
-  overflow: auto;
-}
-
-.sidebar {
-  background: var(--sidebar-bg);
-  border-right: 1px solid var(--border-color);
-  padding: 12px;
-}
-
-.main {
-  display: flex;
-  flex-direction: column;
-  background: var(--query-editor-bg);
-}
-
-.json-pane {
-  border-left: 1px solid var(--border-color);
-  padding: 12px;
-  background: var(--sidebar-bg);
-}
-
-.connection {
-  max-width: 720px;
-  margin: 48px auto;
-  padding: 24px;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background: var(--sidebar-bg);
-}
-
-label {
-  display: block;
-  margin: 8px 0 4px;
-  color: var(--text);
-}
-
-input,
-select,
-textarea,
-button {
-  font: inherit;
-  color: inherit;
-  background: var(--theme-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-}
-
-input,
-select {
-  width: 100%;
-  height: 32px;
-  padding: 0 8px;
-}
-
-textarea {
-  width: 100%;
-  min-height: 160px;
-  padding: 8px;
-  resize: vertical;
-  background: var(--query-editor-bg);
-}
-
-button {
-  height: 32px;
-  padding: 0 12px;
-  cursor: pointer;
-}
-
-button.primary {
-  background: var(--theme-primary);
-  color: var(--theme-bg);
-  border-color: var(--theme-primary);
-}
-
-.row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 12px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th,
-td {
-  border-bottom: 1px solid var(--border-color);
-  padding: 6px 8px;
-  text-align: left;
-  font-variant-numeric: tabular-nums;
-}
-
-th {
-  color: var(--text);
-  font-weight: 600;
-}
-
-.table-wrap {
-  flex: 1;
-  overflow: auto;
-}
-
-.statusbar {
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 12px;
-  border-top: 1px solid var(--border-color);
-  color: var(--text);
-}
-
-.entity {
-  padding: 4px 0;
-  cursor: pointer;
-}
-
-.entity:hover {
-  color: var(--theme-primary);
-}
-
-.error {
-  color: var(--brand-danger);
-}
-
-.ok {
-  color: var(--brand-success);
-}
-
-.filter-row {
-  display: grid;
-  grid-template-columns: 1fr 110px 1fr 32px;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-
-pre {
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-size: 12px;
-}
-
-.saved {
-  margin-top: 16px;
 }

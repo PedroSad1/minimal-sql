@@ -5,3 +5,11 @@ declare module "*.vue" {
   const component: DefineComponent<object, object, unknown>;
   export default component;
 }
+
+declare module "vue" {
+  interface ComponentCustomProperties {
+    $util: {
+      send: <T = unknown>(channel: string, payload?: Record<string, unknown>) => Promise<T>;
+    };
+  }
+}

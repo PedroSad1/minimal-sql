@@ -1,43 +1,59 @@
-import { invoke } from "@tauri-apps/api/core";
+import { send, setSessionId, getSessionId } from "./tauri-util";
 
-/** Keep Beekeeper Community channel names (`conn/listTables`) mapped to Tauri commands. */
-export function send<T>(channel: string, payload: Record<string, unknown> = {}): Promise<T> {
-  const command = channel.replace(/\//g, "_").replace(/[A-Z]/g, (ch) => `_${ch.toLowerCase()}`);
-  return invoke<T>(command, payload);
-}
+export { send, setSessionId, getSessionId };
 
 export const ipc = {
-  create: (config: unknown) => invoke<string>("conn_create", { config }),
-  disconnect: (sessionId: string) => invoke("conn_disconnect", { sessionId }),
-  version: (sessionId: string) => invoke<string>("conn_version_string", { sessionId }),
-  tables: (sessionId: string) => invoke<TableOrView[]>("conn_list_tables", { sessionId }),
-  views: (sessionId: string) => invoke<TableOrView[]>("conn_list_views", { sessionId }),
-  columns: (sessionId: string, table: string, schema?: string) =>
-    invoke<TableColumn[]>("conn_list_table_columns", { sessionId, table, schema }),
-  query: (sessionId: string, sql: string) =>
-    invoke<QueryResult[]>("query_execute", { sessionId, sql }),
-  selectTop: (sessionId: string, opts: unknown) =>
-    invoke<TableResult>("conn_select_top", { sessionId, opts }),
-  applyChanges: (sessionId: string, changes: unknown) =>
-    invoke<number>("conn_apply_changes", { sessionId, changes }),
-  exportResult: (result: QueryResult, path: string, format: string) =>
-    invoke("export_result", { result, path, format }),
-  queryToFile: (sessionId: string, sql: string, path: string, format: string) =>
-    invoke("query_execute_to_file", { sessionId, sql, path, format }),
-  importFile: (path: string, format: string) => invoke<ImportedTable>("import_file", { path, format }),
-  backup: (sessionId: string, table: string, path: string) =>
-    invoke("backup_table", { sessionId, table, path }),
-  savedFind: () => invoke<SavedConnection[]>("appdb_saved_find"),
-  savedSave: (obj: SavedConnection) => invoke("appdb_saved_save", { obj }),
-  history: () => invoke<string[]>("appdb_history_find"),
-  getSetting: (key: string) => invoke<string | null>("appdb_setting_get", { key }),
-  setSetting: (key: string, value: string) => invoke("appdb_setting_set", { key, value }),
+  create: (config: unknown) => send<string>("conn/create", { config }),
+  connect: () => send("conn/connect"),
+  disconnect: () => send("conn/disconnect"),
+  version: () => send<string>("conn/versionString"),
+  tables: () => send<TableOrView[]>("conn/listTables"),
+  views: () => send<TableOrView[]>("conn/listViews"),
+  columns: (table: string, schema?: string) =>
+    send<TableColumn[]>("conn/listTableColumns", { table, schema }),
+  indexes: (table: string, schema?: string) =>
+    send<TableIndex[]>("conn/listTableIndexes", { table, schema }),
+  triggers: (table: string, schema?: string) =>
+    send<TableTrigger[]>("conn/listTableTriggers", { table, schema }),
+  query: (sql: string) => send<NgQueryResult[]>("conn/executeQuery", { queryText: sql }),
+  exportQuery: (sql: string, path: string, format: string) =>
+    send<{ path: string }>("conn/exportQuery", { sql, path, format }),
+  importFile: (path: string, format: string) =>
+    send<ImportedTable>("conn/importFile", { path, format }),
+  selectTop: (opts: unknown) => send<NgQueryResult>("conn/selectTop", { opts }),
+  applyChanges: (changes: TableChanges) => send<number>("conn/applyChanges", { changes }),
+  primaryKeys: (table: string, schema?: string | null) =>
+    send<string[]>("conn/getPrimaryKeys", { table, schema: schema ?? undefined }),
+  savedFind: () => send<SavedConnection[]>("appdb/saved/find"),
+  savedSave: (obj: SavedConnection) => send<SavedConnection>("appdb/saved/save", { obj }),
+  savedRemove: (id: string) => send<void>("appdb/saved/remove", { id }),
+  history: () => send<string[]>("appdb/history/find"),
+  getSetting: (key: string) => send<string | null>("appdb/setting/get", { key }),
+  setSetting: (key: string, value: string) => send("appdb/setting/set", { key, value }),
 };
+
+export interface FieldDescriptor {
+  name: string;
+  id: string;
+  dataType?: string | null;
+}
+
+export interface NgQueryResult {
+  fields?: FieldDescriptor[];
+  rows?: Record<string, unknown>[];
+  rowCount?: number;
+  totalRowCount?: number;
+  truncated?: boolean;
+  command?: string;
+  affectedRows?: number;
+  text?: string;
+}
 
 export interface TableOrView {
   name: string;
   schema?: string | null;
   entityType: string;
+  parent?: string | null;
 }
 
 export interface TableColumn {
@@ -47,17 +63,17 @@ export interface TableColumn {
   ordinalPosition: number;
 }
 
-export interface QueryResult {
+export interface TableIndex {
+  name: string;
+  unique: boolean;
+  primary: boolean;
   columns: string[];
-  rows: unknown[][];
-  rowCount: number;
-  truncated: boolean;
 }
 
-export interface TableResult {
-  columns: string[];
-  rows: unknown[][];
-  total: number;
+export interface TableTrigger {
+  name: string;
+  timing?: string | null;
+  manipulation?: string | null;
 }
 
 export interface ImportedTable {
@@ -69,6 +85,19 @@ export interface SavedConnection {
   id: string;
   name: string;
   payload: unknown;
+}
+
+export interface RowChange {
+  table: string;
+  schema?: string | null;
+  primaryKeys: [string, unknown][];
+  values: [string, unknown][];
+}
+
+export interface TableChanges {
+  inserts: RowChange[];
+  updates: RowChange[];
+  deletes: RowChange[];
 }
 
 export const COMMUNITY_TYPES = [

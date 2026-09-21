@@ -5,13 +5,13 @@ use graphite_appdb::{AppDb, SavedConnection, SavedQuery};
 use graphite_core::{export_csv, export_json};
 use graphite_core::{import_csv_rows, import_json_rows, import_xlsx_rows};
 use graphite_core::{
-    sql_dump, ConnectionConfig, DatabaseClient, QueryResult, SelectTop, TableChanges,
-    TableColumn, TableOrView, TableResult,
+    sql_dump, ConnectionConfig, DatabaseClient, NgQueryResult, QueryResult, Routine, SelectTop,
+    TableChanges, TableColumn, TableIndex, TableOrView, TableTrigger,
 };
 use graphite_drivers::open_client;
 use graphite_ssh::{open_tunnel, SshTunnel};
 use serde::Serialize;
-use tauri::State;
+use tauri::{Emitter, State};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
@@ -148,18 +148,34 @@ async fn conn_list_databases(
         .map_err(|e| e.to_string())
 }
 
+async fn execute_sql(
+    state: &State<'_, AppState>,
+    session_id: &str,
+    sql: &str,
+) -> Result<Vec<QueryResult>, String> {
+    let _ = state.appdb.add_history(sql);
+    let mut sessions = state.sessions.lock().await;
+    session_client(&mut sessions, session_id)?
+        .execute_query(sql)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 async fn query_execute(
     state: State<'_, AppState>,
     session_id: String,
-    sql: String,
-) -> Result<Vec<QueryResult>, String> {
-    let _ = state.appdb.add_history(&sql);
-    let mut sessions = state.sessions.lock().await;
-    session_client(&mut sessions, &session_id)?
-        .execute_query(&sql)
-        .await
-        .map_err(|e| e.to_string())
+    sql: Option<String>,
+    query_text: Option<String>,
+) -> Result<Vec<NgQueryResult>, String> {
+    let sql = sql
+        .or(query_text)
+        .ok_or_else(|| "sql missing".to_string())?;
+    Ok(execute_sql(&state, &session_id, &sql)
+        .await?
+        .into_iter()
+        .map(NgQueryResult::from)
+        .collect())
 }
 
 #[tauri::command]
@@ -167,10 +183,80 @@ async fn conn_select_top(
     state: State<'_, AppState>,
     session_id: String,
     opts: SelectTop,
-) -> Result<TableResult, String> {
+) -> Result<NgQueryResult, String> {
+    let mut sessions = state.sessions.lock().await;
+    let result = session_client(&mut sessions, &session_id)?
+        .select_top(opts)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(NgQueryResult::from(result))
+}
+
+#[tauri::command]
+async fn conn_connect() -> Result<(), String> {
+    Ok(())
+}
+
+#[tauri::command]
+async fn conn_list_schemas(
+    state: State<'_, AppState>,
+    session_id: String,
+) -> Result<Vec<String>, String> {
     let mut sessions = state.sessions.lock().await;
     session_client(&mut sessions, &session_id)?
-        .select_top(opts)
+        .list_schemas()
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn conn_list_routines(
+    state: State<'_, AppState>,
+    session_id: String,
+) -> Result<Vec<Routine>, String> {
+    let mut sessions = state.sessions.lock().await;
+    session_client(&mut sessions, &session_id)?
+        .list_routines()
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn conn_list_table_indexes(
+    state: State<'_, AppState>,
+    session_id: String,
+    table: String,
+    schema: Option<String>,
+) -> Result<Vec<TableIndex>, String> {
+    let mut sessions = state.sessions.lock().await;
+    session_client(&mut sessions, &session_id)?
+        .list_table_indexes(&table, schema.as_deref())
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn conn_list_table_triggers(
+    state: State<'_, AppState>,
+    session_id: String,
+    table: String,
+    schema: Option<String>,
+) -> Result<Vec<TableTrigger>, String> {
+    let mut sessions = state.sessions.lock().await;
+    session_client(&mut sessions, &session_id)?
+        .list_table_triggers(&table, schema.as_deref())
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn conn_default_schema(
+    state: State<'_, AppState>,
+    session_id: String,
+) -> Result<Option<String>, String> {
+    let mut sessions = state.sessions.lock().await;
+    session_client(&mut sessions, &session_id)?
+        .default_schema()
         .await
         .map_err(|e| e.to_string())
 }
@@ -184,6 +270,20 @@ async fn conn_apply_changes(
     let mut sessions = state.sessions.lock().await;
     session_client(&mut sessions, &session_id)?
         .apply_changes(changes)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn conn_get_primary_keys(
+    state: State<'_, AppState>,
+    session_id: String,
+    table: String,
+    schema: Option<String>,
+) -> Result<Vec<String>, String> {
+    let mut sessions = state.sessions.lock().await;
+    session_client(&mut sessions, &session_id)?
+        .get_primary_keys(&table, schema.as_deref())
         .await
         .map_err(|e| e.to_string())
 }
@@ -223,7 +323,7 @@ async fn query_execute_to_file(
     path: String,
     format: String,
 ) -> Result<ExportOk, String> {
-    let results = query_execute(state, session_id, sql).await?;
+    let results = execute_sql(&state, &session_id, &sql).await?;
     let result = results.into_iter().next().unwrap_or_default();
     export_result(result, path, format).await
 }
@@ -272,6 +372,11 @@ fn appdb_saved_save(
 }
 
 #[tauri::command]
+fn appdb_saved_remove(state: State<'_, AppState>, id: String) -> Result<(), String> {
+    state.appdb.remove_connection(&id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn appdb_query_find(state: State<'_, AppState>) -> Result<Vec<SavedQuery>, String> {
     state.appdb.list_queries().map_err(|e| e.to_string())
 }
@@ -303,18 +408,62 @@ fn appdb_history_find(state: State<'_, AppState>) -> Result<Vec<String>, String>
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .manage(AppState::new())
+        .setup(|app| {
+            use tauri::Manager;
+            use tauri::menu::{MenuBuilder, SubmenuBuilder};
+            if let Some(win) = app.get_webview_window("main") {
+                let win = win.clone();
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                    let _ = win.unminimize();
+                    let _ = win.set_size(tauri::LogicalSize::new(1280.0, 800.0));
+                    let _ = win.center();
+                    let _ = win.show();
+                    let _ = win.set_focus();
+                });
+            }
+            let file_menu = SubmenuBuilder::new(app, "Arquivo")
+                .text("open-sqlite", "Abrir SQLite…")
+                .separator()
+                .quit()
+                .build()?;
+            let edit_menu = SubmenuBuilder::new(app, "Editar")
+                .copy()
+                .paste()
+                .select_all()
+                .build()?;
+            let menu = MenuBuilder::new(app)
+                .item(&file_menu)
+                .item(&edit_menu)
+                .build()?;
+            app.set_menu(menu)?;
+            Ok(())
+        })
+        .on_menu_event(|app, event| {
+            if event.id().as_ref() == "open-sqlite" {
+                let _ = app.emit("menu://open-sqlite", ());
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             conn_create,
+            conn_connect,
             conn_disconnect,
             conn_version_string,
+            conn_default_schema,
             conn_list_tables,
             conn_list_views,
             conn_list_table_columns,
             conn_list_databases,
+            conn_list_schemas,
+            conn_list_routines,
+            conn_list_table_indexes,
+            conn_list_table_triggers,
             query_execute,
             conn_select_top,
             conn_apply_changes,
+            conn_get_primary_keys,
             conn_supported_features,
             export_result,
             query_execute_to_file,
@@ -322,6 +471,7 @@ pub fn run() {
             backup_table,
             appdb_saved_find,
             appdb_saved_save,
+            appdb_saved_remove,
             appdb_query_find,
             appdb_query_save,
             appdb_setting_get,

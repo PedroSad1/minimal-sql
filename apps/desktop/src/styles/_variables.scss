@@ -1,49 +1,48 @@
-@use "sass:color";
 // Theme
 // -----------------------------
-$theme-bg:               #111111!default;
-$theme-base:             #e8e8e8!default;
-$theme-primary:          #c8c8c8!default;
-$theme-secondary:        #8a8a8a!default;
+$theme-bg:               #09090b!default;
+$theme-base:             #fafafa!default;
+$theme-primary:          #fafafa!default;
+$theme-secondary:        #a1a1aa!default;
 
 // Colors
 // -----------------------------
-$text-dark:                 rgba($theme-base, 0.87)!default;
-$text:                      rgba($theme-base, 0.67)!default;
-$text-light:                rgba($theme-base, 0.57)!default;
-$text-lighter:              rgba($theme-base, 0.37)!default;
-$text-hint:                 rgba($theme-base, 0.37)!default;
-$text-disabled:             rgba($theme-base, 0.37)!default;
+$text-dark:                 #fafafa!default;
+$text:                      #a1a1aa!default;
+$text-light:                #a1a1aa!default;
+$text-lighter:              #71717a!default;
+$text-hint:                 #71717a!default;
+$text-disabled:             #71717a!default;
 
 $brand-info:                $theme-secondary!default;
-$brand-success:             #3d9a78!default;
-$brand-warning:             #c48a4a!default;
-$brand-danger:              #c45c5c!default;
-$brand-default:             rgba($theme-base, 0.57)!default;
-$brand-purple:              #9858ff!default;
-$brand-pink:                #ff78f7!default;
+$brand-success:             #3f8f72!default;
+$brand-warning:             #a16207!default;
+$brand-danger:              #dc2626!default;
+$brand-default:             #a1a1aa!default;
+$brand-purple:              #71717a!default;
+$brand-pink:                #fafafa!default;
 $brand-primary:             $theme-primary!default;
 $brand-secondary:           $theme-secondary!default;
 
 // App
-$border-color:              rgba($theme-base, 0.1)!default;
+$border-color:              #27272a!default;
 $link-color:                $text-dark!default;
 $placeholder:               $text-hint!default;
-$selection:                 rgba($theme-primary, 0.2)!default;
-$input-highlight:           rgba($theme-base, 0.27)!default;
+$selection:                 #27272a!default;
+$input-highlight:           #27272a!default;
 
 $db-select-text:            white!default;
-$query-editor-bg:           color.adjust($theme-bg, $lightness: -6%)!default;
+$query-editor-bg:           #09090b!default;
 
-$row-handle-selected:       color.adjust($query-editor-bg, $lightness: 5%);
-$row-handle-hover:          color.adjust($query-editor-bg, $lightness: 5%);
+$row-handle-selected:       #27272a;
+$row-handle-hover:          #27272a;
 
 $titlebar-bg:               transparent!default;
 $global-sidebar-bg:         transparent!default;
-$sidebar-bg:                color.adjust($theme-bg, $lightness: -3%)!default;
+$sidebar-bg:                #09090b!default;
 $sidebar-heading-bg:        $theme-bg!default;
 $tabs-bg:                   transparent!default;
-$statusbar-bg:              rgba($theme-base, 0.1)!default;
+$statusbar-bg:              #09090b!default;
 // $statusbar-bg:             rgba($theme-primary, 0.4);
 
 $statusbar-text:            black!default;
@@ -96,8 +95,8 @@ $font-family: system-ui,
           "Helvetica Neue",
           Arial, sans-serif;
 
-$grouped-tables-base: color.adjust($theme-bg, $lightness: 2%);
-$grouped-tables-light: color.adjust($grouped-tables-base, $lightness: 2%);
+$grouped-tables-base: #18181b;
+$grouped-tables-light: #27272a;
 
 $scrollbar-track: transparent;
-$scrollbar-thumb: color.mix($theme-base, $theme-bg, 20%);
+$scrollbar-thumb: #27272a;

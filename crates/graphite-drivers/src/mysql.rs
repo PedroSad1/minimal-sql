@@ -136,7 +136,6 @@ impl DatabaseClient for MysqlClient {
             order_sql(dialect, &opts)?,
             limit_sql(dialect, opts.limit.max(1), opts.offset.max(0))
         );
-        let count_sql = format!("SELECT COUNT(*) FROM {table}{}", where_clause.sql);
         let params: Vec<mysql_async::Value> =
             where_clause.params.iter().map(json_to_mysql).collect();
         let mut conn = self
@@ -149,12 +148,16 @@ impl DatabaseClient for MysqlClient {
             .into_iter()
             .next()
             .unwrap_or_default();
-        let total: i64 = conn
-            .exec_first(&count_sql, mysql_async::Params::Positional(params))
-            .await
-            .ok()
-            .flatten()
-            .unwrap_or(result.row_count as i64);
+        let total: i64 = if opts.skip_count {
+            result.row_count as i64
+        } else {
+            let count_sql = format!("SELECT COUNT(*) FROM {table}{}", where_clause.sql);
+            conn.exec_first(&count_sql, mysql_async::Params::Positional(params))
+                .await
+                .ok()
+                .flatten()
+                .unwrap_or(result.row_count as i64)
+        };
         Ok(TableResult {
             columns: result.columns,
             rows: result.rows,
@@ -284,6 +287,7 @@ impl MysqlClient {
                 name,
                 schema: None,
                 entity_type: entity.into(),
+                parent: None,
             })
             .collect())
     }

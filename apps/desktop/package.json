@@ -1,5 +1,5 @@
 {
-  "name": "graphite",
+  "name": "minimal-sql",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -11,15 +11,31 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-json": "^6.0.2",
+    "@codemirror/lang-sql": "^6.10.0",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/state": "^6.7.5",
+    "@codemirror/view": "^6.43.12",
+    "@lezer/highlight": "^1.2.3",
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-clipboard-manager": "^2.3.3",
     "@tauri-apps/plugin-dialog": "^2",
+    "tabulator-tables": "^6.5.3",
     "vue": "^3.5.13"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
+    "@types/tabulator-tables": "^6.3.6",
     "@vitejs/plugin-vue": "^5.2.1",
     "sass": "^1.83.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.7"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@parcel/watcher"
+    ]
   }
 }

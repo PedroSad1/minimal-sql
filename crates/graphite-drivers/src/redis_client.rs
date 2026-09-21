@@ -86,6 +86,7 @@ impl DatabaseClient for RedisClient {
                 name,
                 schema: None,
                 entity_type: "key".into(),
+                parent: None,
             })
             .collect())
     }

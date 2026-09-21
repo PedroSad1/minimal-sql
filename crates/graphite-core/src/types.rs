@@ -68,7 +68,7 @@ pub struct SshConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 pub struct ConnectionConfig {
     pub connection_type: String,
     pub name: Option<String>,
@@ -92,6 +92,8 @@ pub struct TableOrView {
     pub name: String,
     pub schema: Option<String>,
     pub entity_type: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -112,6 +114,137 @@ pub struct QueryResult {
     pub truncated: bool,
 }
 
+/// Community `FieldDescriptor` (`apps/studio/src/lib/db/models.ts`).
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct FieldDescriptor {
+    pub name: String,
+    pub id: String,
+    pub data_type: Option<String>,
+}
+
+/// Community `NgQueryResult`. Rows are objects keyed by field id.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct NgQueryResult {
+    pub fields: Vec<FieldDescriptor>,
+    pub rows: Vec<serde_json::Value>,
+    pub row_count: usize,
+    pub total_row_count: Option<usize>,
+    pub truncated: bool,
+    pub command: Option<String>,
+    pub affected_rows: Option<u64>,
+    pub text: Option<String>,
+}
+
+impl From<QueryResult> for NgQueryResult {
+    fn from(result: QueryResult) -> Self {
+        tabular_to_ng(result.columns, result.rows, result.row_count, result.truncated, None)
+    }
+}
+
+impl From<TableResult> for NgQueryResult {
+    fn from(result: TableResult) -> Self {
+        tabular_to_ng(
+            result.columns,
+            result.rows,
+            result.total.max(0) as usize,
+            false,
+            Some(result.total.max(0) as usize),
+        )
+    }
+}
+
+impl From<NgQueryResult> for QueryResult {
+    fn from(result: NgQueryResult) -> Self {
+        let columns: Vec<String> = result.fields.iter().map(|field| field.name.clone()).collect();
+        let rows = result
+            .rows
+            .into_iter()
+            .map(|row| match row {
+                serde_json::Value::Object(map) => result
+                    .fields
+                    .iter()
+                    .map(|field| map.get(&field.id).cloned().unwrap_or(serde_json::Value::Null))
+                    .collect(),
+                serde_json::Value::Array(cells) => cells,
+                other => vec![other],
+            })
+            .collect();
+        QueryResult {
+            columns,
+            rows,
+            row_count: result.row_count,
+            truncated: result.truncated,
+        }
+    }
+}
+
+fn tabular_to_ng(
+    columns: Vec<String>,
+    rows: Vec<Vec<serde_json::Value>>,
+    row_count: usize,
+    truncated: bool,
+    total_row_count: Option<usize>,
+) -> NgQueryResult {
+    let fields: Vec<FieldDescriptor> = columns
+        .iter()
+        .map(|name| FieldDescriptor {
+            name: name.clone(),
+            id: name.clone(),
+            data_type: None,
+        })
+        .collect();
+    let objects = rows
+        .into_iter()
+        .map(|row| {
+            let mut map = serde_json::Map::new();
+            for (index, field) in fields.iter().enumerate() {
+                map.insert(
+                    field.id.clone(),
+                    row.get(index).cloned().unwrap_or(serde_json::Value::Null),
+                );
+            }
+            serde_json::Value::Object(map)
+        })
+        .collect();
+    NgQueryResult {
+        fields,
+        rows: objects,
+        row_count,
+        total_row_count,
+        truncated,
+        command: Some("SELECT".into()),
+        affected_rows: None,
+        text: None,
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct TableIndex {
+    pub name: String,
+    pub unique: bool,
+    pub primary: bool,
+    pub columns: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct TableTrigger {
+    pub name: String,
+    pub timing: Option<String>,
+    pub manipulation: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct Routine {
+    pub name: String,
+    pub schema: Option<String>,
+    pub routine_type: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SelectTop {
@@ -122,6 +255,8 @@ pub struct SelectTop {
     pub order_by: Vec<OrderBy>,
     pub filters: Vec<crate::filter::TableFilter>,
     pub selects: Option<Vec<String>>,
+    #[serde(default)]
+    pub skip_count: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -185,4 +320,27 @@ impl SupportedFeatures {
 pub struct CancelableQuery {
     pub id: u32,
     pub name: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn query_result_becomes_community_ng_objects() {
+        let raw = QueryResult {
+            columns: vec!["id".into(), "name".into()],
+            rows: vec![vec![json!(1), json!("a")]],
+            row_count: 1,
+            truncated: false,
+        };
+        let ng = NgQueryResult::from(raw);
+        assert_eq!(ng.fields[0].id, "id");
+        assert_eq!(ng.rows[0]["name"], json!("a"));
+        assert_eq!(ng.command.as_deref(), Some("SELECT"));
+        let back = QueryResult::from(ng);
+        assert_eq!(back.columns, vec!["id", "name"]);
+        assert_eq!(back.rows[0][1], json!("a"));
+    }
 }

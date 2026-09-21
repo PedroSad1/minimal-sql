@@ -211,6 +211,7 @@ impl MssqlClient {
                 schema: Some(cell_string(&row, 0)),
                 name: cell_string(&row, 1),
                 entity_type: entity.into(),
+                parent: None,
             })
             .collect())
     }

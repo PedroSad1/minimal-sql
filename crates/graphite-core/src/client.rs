@@ -21,4 +21,16 @@ pub trait DatabaseClient: Send + Sync {
     async fn default_schema(&self) -> Result<Option<String>> {
         Ok(None)
     }
+    async fn list_schemas(&self) -> Result<Vec<String>> {
+        Ok(Vec::new())
+    }
+    async fn list_routines(&self) -> Result<Vec<Routine>> {
+        Ok(Vec::new())
+    }
+    async fn list_table_indexes(&self, _table: &str, _schema: Option<&str>) -> Result<Vec<TableIndex>> {
+        Ok(Vec::new())
+    }
+    async fn list_table_triggers(&self, _table: &str, _schema: Option<&str>) -> Result<Vec<TableTrigger>> {
+        Ok(Vec::new())
+    }
 }
