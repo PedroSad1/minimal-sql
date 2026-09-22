@@ -15,7 +15,7 @@ jobs:
       matrix:
         include:
           - platform: macos-latest
-            args: --bundles dmg --target universal-apple-darwin
+            args: --bundles app,dmg --target universal-apple-darwin
           - platform: ubuntu-22.04
             args: --bundles deb,appimage
           - platform: windows-latest
