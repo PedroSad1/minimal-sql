@@ -27,14 +27,6 @@ export interface SqlContext {
   refs: TableRef[];
 }
 
-interface Tok {
-  kind: "word" | "dot" | "comma" | "paren" | "semi";
-  text: string;
-  from: number;
-  to: number;
-  quoted: boolean;
-}
-
 interface Skip {
   from: number;
   to: number;
@@ -109,7 +101,37 @@ const CLAUSE_WORDS = new Set([
   "explain",
 ]);
 const SKIP_BEFORE_TABLE = new Set(["only", "lateral", "outer"]);
+const FUNCTION_WORDS = new Set(["count", "sum", "avg", "min", "max", "coalesce", "cast"]);
 const STOP = new Set([...TABLE_INTRO, ...COLUMN_WORDS, ...CLAUSE_WORDS, "select", "from", "where", "join"]);
+
+export const SQL_KEYWORDS: readonly string[] = [...STOP, ...FUNCTION_WORDS];
+
+export function isSqlKeyword(word: string) {
+  const lower = word.toLowerCase();
+  return STOP.has(lower) || FUNCTION_WORDS.has(lower);
+}
+
+export function keywordNext(word: string): "table" | "column" | "alias" | "clause" | null {
+  const lower = word.toLowerCase();
+  if (FUNCTION_WORDS.has(lower)) return "column";
+  if (!STOP.has(lower)) return null;
+  if (lower === "as") return "alias";
+  if (TABLE_INTRO.has(lower)) return "table";
+  if (COLUMN_WORDS.has(lower)) return "column";
+  return "clause";
+}
+
+export interface SqlToken {
+  kind: "word" | "dot" | "comma" | "paren" | "semi";
+  text: string;
+  from: number;
+  to: number;
+  quoted: boolean;
+}
+
+export function scanSql(doc: string, options: ScanOptions = postgresScan): SqlToken[] {
+  return tokenize(doc, options).tokens;
+}
 
 function blank(from: number, kind: CompleteKind): SqlContext {
   return { from, parents: [], partial: "", kind, refs: [] };
@@ -123,7 +145,7 @@ function closingIdent(ch: string, options: ScanOptions) {
 }
 
 function tokenize(doc: string, options: ScanOptions) {
-  const tokens: Tok[] = [];
+  const tokens: SqlToken[] = [];
   const skips: Skip[] = [];
   let i = 0;
   while (i < doc.length) {
@@ -252,15 +274,15 @@ function skipDollar(doc: string, start: number) {
   return end < 0 ? doc.length : end + closer.length;
 }
 
-function word(token: Tok | undefined) {
+function word(token: SqlToken | undefined) {
   return token?.kind === "word" ? token.text.toLowerCase() : "";
 }
 
-function isStop(token: Tok | undefined) {
+function isStop(token: SqlToken | undefined) {
   return Boolean(token && token.kind === "word" && !token.quoted && STOP.has(token.text.toLowerCase()));
 }
 
-function readName(tokens: Tok[], index: number) {
+function readName(tokens: SqlToken[], index: number) {
   const first = tokens[index];
   if (!first || first.kind !== "word") return null;
   if (!first.quoted && STOP.has(first.text.toLowerCase()) && tokens[index + 1]?.kind !== "dot") return null;
@@ -275,7 +297,7 @@ function readName(tokens: Tok[], index: number) {
   return { schema, name, next };
 }
 
-function readAlias(tokens: Tok[], index: number) {
+function readAlias(tokens: SqlToken[], index: number) {
   let cursor = index;
   if (word(tokens[cursor]) === "as" && !tokens[cursor].quoted) cursor += 1;
   const token = tokens[cursor];
@@ -283,7 +305,7 @@ function readAlias(tokens: Tok[], index: number) {
   return { alias: token.text, next: cursor + 1 };
 }
 
-function collectRefs(tokens: Tok[]) {
+export function sqlTableRefs(tokens: SqlToken[]) {
   const refs: TableRef[] = [];
   let depth = 0;
   let i = 0;
@@ -334,7 +356,7 @@ function collectRefs(tokens: Tok[]) {
   return refs;
 }
 
-function statementTokens(tokens: Tok[], pos: number) {
+function statementTokens(tokens: SqlToken[], pos: number) {
   let from = 0;
   let depth = 0;
   let to = Number.POSITIVE_INFINITY;
@@ -408,7 +430,7 @@ export function sqlContext(doc: string, pos: number, options: ScanOptions = post
     ? partial.to - 1
     : (partial?.to ?? safe);
   const typed = partial ? doc.slice(origin, Math.min(safe, contentEnd)) : "";
-  const refs = collectRefs(local).filter((ref) => {
+  const refs = sqlTableRefs(local).filter((ref) => {
     if (ref.depth === depth) return true;
     return ref.depth === depth - 1 && own == null && inherited !== "values" && inherited !== "limit" && inherited !== "offset";
   });

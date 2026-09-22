@@ -39,7 +39,11 @@ body {
   $number,
   $comment,
   $btn-fg,
-  $line
+  $line,
+  $clause,
+  $table,
+  $field,
+  $error
 ) {
   --theme-bg: #{$bg};
   --theme-base: #{$base};
@@ -76,6 +80,10 @@ body {
   --bks-text-editor-selected-bg-color: #{$border};
   --bks-text-editor-cursor-bg-color: #{$text-strong};
   --bks-text-editor-focused-outline-color: transparent;
+  --sql-clause: #{$clause};
+  --sql-table: #{$table};
+  --sql-field: #{$field};
+  --sql-error: #{$error};
 }
 
 @mixin dark-tokens {
@@ -97,7 +105,11 @@ body {
     dark.$sql-number,
     dark.$sql-comment,
     dark.$btn-fg,
-    dark.$line-number
+    dark.$line-number,
+    dark.$sql-clause,
+    dark.$sql-table,
+    dark.$sql-field,
+    dark.$sql-error
   );
 }
 
@@ -120,7 +132,11 @@ body {
     light.$sql-number,
     light.$sql-comment,
     light.$btn-fg,
-    light.$line-number
+    light.$line-number,
+    light.$sql-clause,
+    light.$sql-table,
+    light.$sql-field,
+    light.$sql-error
   );
 }
 

@@ -11,6 +11,7 @@ import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { graphiteEditor } from "../editor-theme";
 import { ipc, type TableOrView } from "../ipc";
 import { createSqlCompletion, dialectFor } from "../sql-complete";
+import { sqlTone, sqlToneRefresh } from "../sql-tone";
 
 const props = withDefaults(
   defineProps<{
@@ -30,6 +31,7 @@ const emit = defineEmits<{
 
 const host = ref<HTMLElement | null>(null);
 const sqlLang = new Compartment();
+const tone = new Compartment();
 let view: EditorView | null = null;
 
 const completion = createSqlCompletion({
@@ -48,6 +50,23 @@ function sqlLanguage(type: string) {
   return [dialect.language, dialect.language.data.of({ autocomplete: completion })];
 }
 
+function entityKey() {
+  return (props.entities ?? []).map((entity) => `${entity.schema ?? ""}.${entity.name}`).join("\n");
+}
+
+function toneExtension() {
+  return sqlTone({
+    getConnectionType: () => props.connectionType || "postgresql",
+    getEntities: () => props.entities ?? [],
+    loadColumns: async (table, schema) => {
+      if (!props.connectionId) return null;
+      if (props.prepareConnection) await props.prepareConnection(props.connectionId);
+      const columns = await ipc.columns(table, schema || undefined);
+      return columns.map((column) => ({ name: column.columnName }));
+    },
+  });
+}
+
 onMounted(() => {
   if (!host.value) return;
   view = new EditorView({
@@ -58,6 +77,7 @@ onMounted(() => {
         lineNumbers(),
         history(),
         sqlLang.of(sqlLanguage(props.connectionType)),
+        tone.of(toneExtension()),
         graphiteEditor,
         tooltips({ parent: document.body }),
         autocompletion({
@@ -92,9 +112,24 @@ watch(
   () => props.connectionType,
   (type) => {
     if (!view) return;
-    view.dispatch({ effects: sqlLang.reconfigure(sqlLanguage(type)) });
+    view.dispatch({
+      effects: [sqlLang.reconfigure(sqlLanguage(type)), tone.reconfigure(toneExtension())],
+    });
   },
 );
+
+watch(
+  () => props.connectionId,
+  () => {
+    if (!view) return;
+    view.dispatch({ effects: tone.reconfigure(toneExtension()) });
+  },
+);
+
+watch(entityKey, () => {
+  if (!view) return;
+  view.dispatch({ effects: sqlToneRefresh.of(null) });
+});
 
 watch(
   () => props.active,

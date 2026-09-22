@@ -906,6 +906,29 @@ select.form-control {
   font-style: italic;
 }
 
+.sql-editor .sql-clause,
+.sql-editor .sql-clause span {
+  color: var(--sql-clause) !important;
+}
+
+.sql-editor .sql-table,
+.sql-editor .sql-table span {
+  color: var(--sql-table) !important;
+}
+
+.sql-editor .sql-field,
+.sql-editor .sql-field span {
+  color: var(--sql-field) !important;
+}
+
+.sql-editor .sql-error,
+.sql-editor .sql-error span {
+  color: var(--sql-error) !important;
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
 .sql-editor .tok-operator,
 .sql-editor .tok-punctuation,
 .sql-editor .tok-separator,
