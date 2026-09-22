@@ -1,7 +1,7 @@
 {
   "name": "minimal-sql",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "license": "GPL-3.0-or-later",
   "scripts": {
@@ -11,6 +11,7 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/commands": "^6.11.1",
     "@codemirror/lang-json": "^6.0.2",
     "@codemirror/lang-sql": "^6.10.0",

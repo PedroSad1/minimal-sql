@@ -51,6 +51,7 @@ mod tests {
             rows: vec![vec![json!(1)]],
             row_count: 1,
             truncated: false,
+            enum_values: Vec::new(),
         };
         let dump = sql_dump("items", &result).unwrap();
         assert!(dump.contains("INSERT INTO"));

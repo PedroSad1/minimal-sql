@@ -170,6 +170,7 @@ impl DatabaseClient for RedisClient {
         Ok(TableResult {
             columns: vec!["field".into(), "value".into()],
             rows,
+            enum_values: Vec::new(),
             total,
         })
     }
@@ -218,6 +219,7 @@ fn redis_to_result(value: redis::Value) -> QueryResult {
         truncated: false,
         columns: vec!["value".into()],
         rows,
+        enum_values: Vec::new(),
     }
 }
 

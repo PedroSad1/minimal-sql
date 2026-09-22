@@ -1,9 +1,6 @@
 Graphite
 Copyright (C) 2026 Pedro Sad
 
-Graphite is a modified work based on Beekeeper Studio Community Edition
-Copyright (C) 2020-present Beekeeper Studio, Inc.
-
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or

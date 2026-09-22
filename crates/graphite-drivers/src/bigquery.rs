@@ -190,6 +190,7 @@ impl DatabaseClient for BigQueryClient {
             total: result.row_count as i64,
             columns: result.columns,
             rows: result.rows,
+            enum_values: result.enum_values,
         })
     }
 
@@ -262,6 +263,7 @@ fn bq_to_result(body: &Value) -> QueryResult {
         truncated: false,
         columns,
         rows,
+        enum_values: Vec::new(),
     }
 }
 

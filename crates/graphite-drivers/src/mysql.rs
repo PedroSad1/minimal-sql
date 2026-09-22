@@ -161,6 +161,7 @@ impl DatabaseClient for MysqlClient {
         Ok(TableResult {
             columns: result.columns,
             rows: result.rows,
+            enum_values: result.enum_values,
             total,
         })
     }
@@ -312,6 +313,7 @@ async fn query_mysql(
                 rows: vec![vec![json!(true)]],
                 row_count: 1,
                 truncated: false,
+                enum_values: Vec::new(),
             }])
         }
     }
@@ -341,5 +343,6 @@ fn mysql_rows_to_result(rows: Vec<MysqlRow>) -> QueryResult {
         truncated: false,
         columns,
         rows: out,
+        enum_values: Vec::new(),
     }
 }

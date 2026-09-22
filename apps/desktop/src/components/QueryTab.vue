@@ -4,6 +4,10 @@
       <SqlEditor
         :active="active"
         :model-value="sql"
+        :entities="entities"
+        :connection-type="connectionType"
+        :connection-id="connectionId"
+        :prepare-connection="prepareConnection"
         @update:model-value="$emit('update:sql', $event)"
         @run="$emit('run')"
       />
@@ -38,7 +42,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import type { NgQueryResult } from "../ipc";
+import type { NgQueryResult, TableOrView } from "../ipc";
 import SqlEditor from "./SqlEditor.vue";
 import ResultGrid from "./ResultGrid.vue";
 
@@ -49,8 +53,12 @@ const props = withDefaults(
     error: string;
     busy: boolean;
     active?: boolean;
+    entities?: TableOrView[];
+    connectionType?: string;
+    connectionId?: string | null;
+    prepareConnection?: (id: string) => Promise<void>;
   }>(),
-  { active: true },
+  { active: true, entities: () => [], connectionType: "postgresql", connectionId: null },
 );
 
 defineEmits<{

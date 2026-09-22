@@ -160,6 +160,7 @@ impl DatabaseClient for SqliteClient {
             Ok(TableResult {
                 columns: first.columns,
                 rows: first.rows,
+                enum_values: first.enum_values,
                 total,
             })
         })
@@ -304,6 +305,7 @@ fn run_sql_with_params(
             rows: vec![vec![serde_json::json!(conn.changes())]],
             row_count: 1,
             truncated: false,
+            enum_values: Vec::new(),
         }]);
     }
     let columns: Vec<String> = stmt.column_names().into_iter().map(|s| s.to_string()).collect();
@@ -328,6 +330,7 @@ fn run_sql_with_params(
         rows,
         row_count,
         truncated,
+        enum_values: Vec::new(),
     }])
 }
 

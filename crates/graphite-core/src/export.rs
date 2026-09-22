@@ -69,6 +69,7 @@ mod tests {
             rows: vec![vec![json!(1), json!("a")]],
             row_count: 1,
             truncated: false,
+            enum_values: Vec::new(),
         };
         export_csv(&csv_path, &result).unwrap();
         export_json(&json_path, &result).unwrap();

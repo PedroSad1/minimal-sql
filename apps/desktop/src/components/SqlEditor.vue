@@ -3,19 +3,25 @@
 </template>
 
 <script setup lang="ts">
-import { EditorView, keymap, lineNumbers, placeholder } from "@codemirror/view";
-import { EditorState } from "@codemirror/state";
+import { acceptCompletion, autocompletion } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
-import { sql } from "@codemirror/lang-sql";
+import { Compartment, EditorState, Prec } from "@codemirror/state";
+import { EditorView, keymap, lineNumbers, placeholder, tooltips } from "@codemirror/view";
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { graphiteEditor } from "../editor-theme";
+import { ipc, type TableOrView } from "../ipc";
+import { createSqlCompletion, dialectFor } from "../sql-complete";
 
 const props = withDefaults(
   defineProps<{
     modelValue: string;
     active?: boolean;
+    entities?: TableOrView[];
+    connectionType?: string;
+    connectionId?: string | null;
+    prepareConnection?: (id: string) => Promise<void>;
   }>(),
-  { active: true },
+  { active: true, entities: () => [], connectionType: "postgresql", connectionId: null },
 );
 const emit = defineEmits<{
   (event: "update:modelValue", value: string): void;
@@ -23,7 +29,24 @@ const emit = defineEmits<{
 }>();
 
 const host = ref<HTMLElement | null>(null);
+const sqlLang = new Compartment();
 let view: EditorView | null = null;
+
+const completion = createSqlCompletion({
+  getConnectionType: () => props.connectionType || "postgresql",
+  getEntities: () => props.entities ?? [],
+  loadColumns: async (table, schema) => {
+    if (!props.connectionId) return [];
+    if (props.prepareConnection) await props.prepareConnection(props.connectionId);
+    const columns = await ipc.columns(table, schema || undefined);
+    return columns.map((column) => ({ name: column.columnName, dataType: column.dataType }));
+  },
+});
+
+function sqlLanguage(type: string) {
+  const dialect = dialectFor(type || "postgresql");
+  return [dialect.language, dialect.language.data.of({ autocomplete: completion })];
+}
 
 onMounted(() => {
   if (!host.value) return;
@@ -34,21 +57,27 @@ onMounted(() => {
       extensions: [
         lineNumbers(),
         history(),
-        sql(),
+        sqlLang.of(sqlLanguage(props.connectionType)),
         graphiteEditor,
+        tooltips({ parent: document.body }),
+        autocompletion({
+          icons: false,
+          activateOnCompletion: (item) => typeof item.apply === "string" && item.apply.endsWith("."),
+        }),
         placeholder("escreva SQL. Cmd+Enter executa."),
-        keymap.of([
-          {
-            key: "Mod-Enter",
-            run: () => {
-              emit("run");
-              return true;
+        Prec.highest(
+          keymap.of([
+            {
+              key: "Mod-Enter",
+              run: () => {
+                emit("run");
+                return true;
+              },
             },
-          },
-          ...defaultKeymap,
-          ...historyKeymap,
-          indentWithTab,
-        ]),
+            { key: "Tab", run: acceptCompletion },
+          ]),
+        ),
+        keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             emit("update:modelValue", update.state.doc.toString());
@@ -58,6 +87,14 @@ onMounted(() => {
     }),
   });
 });
+
+watch(
+  () => props.connectionType,
+  (type) => {
+    if (!view) return;
+    view.dispatch({ effects: sqlLang.reconfigure(sqlLanguage(type)) });
+  },
+);
 
 watch(
   () => props.active,

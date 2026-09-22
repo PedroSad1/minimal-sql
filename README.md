@@ -69,4 +69,4 @@ O app usa Tauri 2, Vue 3 e Rust. Os crates internos continuam com o prefixo `gra
 
 [GNU GPLv3](LICENSE.md).
 
-O Minimal SQL toma ideias do Beekeeper Studio Community. Ele não é o Beekeeper Studio. Este repositório não inclui o código comercial daquele projeto. Todas as funções do Minimal SQL são gratuitas.
+Todas as funções do Minimal SQL são gratuitas.

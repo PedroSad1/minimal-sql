@@ -66,6 +66,7 @@
       :primary-keys="primaryKeys"
       @select-json="$emit('select-json', $event)"
       @pending-count="$emit('pending-count', $event)"
+      @selection-count="selectedCount = $event"
       @near-end="$emit('load-more')"
     />
     <div v-if="loadingMore" class="load-more-bar" role="status">
@@ -88,6 +89,26 @@
       </label>
       <span v-if="!editable" class="hint">sem PK: edição desligada</span>
       <div class="statusbar-actions">
+        <button
+          class="btn btn-flat btn-fab"
+          type="button"
+          title="Nova linha"
+          aria-label="Nova linha"
+          :disabled="!editable || busy"
+          @click="grid?.addDataRow()"
+        >
+          <i class="material-icons">playlist_add</i>
+        </button>
+        <button
+          class="btn btn-flat btn-fab"
+          type="button"
+          title="Apagar linha"
+          aria-label="Apagar linha"
+          :disabled="!editable || busy || selectedCount === 0"
+          @click="grid?.deleteDataRows()"
+        >
+          <i class="material-icons">delete_outline</i>
+        </button>
         <button
           class="btn btn-flat btn-fab"
           type="button"
@@ -161,7 +182,13 @@ const emit = defineEmits<{
   (event: "refresh"): void;
 }>();
 
-const grid = ref<{ buildChanges: () => TableChanges; discard: () => void } | null>(null);
+const grid = ref<{
+  buildChanges: () => TableChanges;
+  discard: () => void;
+  addDataRow: () => void;
+  deleteDataRows: () => void;
+} | null>(null);
+const selectedCount = ref(0);
 const drafts = ref<TableFilterDraft[]>([{ field: "", op: "=", value: "", join: "and" }]);
 const fields = computed(() => (props.result.fields ?? []).map((field) => field.name).filter(Boolean));
 

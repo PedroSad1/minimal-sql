@@ -1,5 +1,5 @@
 <template>
-  <div class="beekeeper-studio-wrapper graphite-wrapper">
+  <div class="graphite-wrapper">
     <Titlebar
       :title="windowTitle"
       :connected="Boolean(sessionId)"
@@ -1074,7 +1074,8 @@ async function saveChanges() {
   const tab = activeTab.value;
   if (!tab || tab.kind !== "table") return;
   const changes = core.value?.buildChanges();
-  if (!changes || !changes.updates.length) return;
+  const count = (changes?.inserts.length ?? 0) + (changes?.updates.length ?? 0) + (changes?.deletes.length ?? 0);
+  if (!changes || !count) return;
   tab.busy = true;
   tab.error = "";
   try {

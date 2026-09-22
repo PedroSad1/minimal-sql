@@ -1,5 +1,5 @@
 <template>
-  <div class="result-wrap" @copy="onCopyEvent" @contextmenu="onGridMenu">
+  <div class="result-wrap" @copy="onCopyEvent" @contextmenu="onGridMenu" @dblclick="onGridDblClick">
     <div ref="host" class="tabulator-host" data-testid="result-grid" tabindex="0"></div>
     <ContextMenu
       :open="menu.open"
@@ -22,6 +22,7 @@ import { copyText } from "../shell";
 import ContextMenu, { type MenuOption } from "./ContextMenu.vue";
 
 const ROW_HEADER = "--row-header--";
+const NEW_ROW = "--new-row--";
 
 const props = withDefaults(
   defineProps<{
@@ -40,6 +41,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   (event: "select-json", value: unknown): void;
   (event: "pending-count", count: number): void;
+  (event: "selection-count", count: number): void;
   (event: "near-end"): void;
 }>();
 
@@ -52,11 +54,15 @@ let bootObserver: ResizeObserver | null = null;
 let cancelLayoutWait: (() => void) | null = null;
 const originals = new Map<string, Record<string, unknown>>();
 const pending = new Map<string, RowChange>();
+const inserts = new Map<string, RowChange>();
+const deletes = new Map<string, RowChange>();
+let insertSeq = 0;
 
 const pkSet = computed(() => new Set(props.primaryKeys ?? []));
 let structureKey = "";
 
 function rowKey(row: Record<string, unknown>) {
+  if (typeof row[NEW_ROW] === "string") return row[NEW_ROW];
   const keys = props.primaryKeys ?? [];
   if (!keys.length) return JSON.stringify(row);
   return JSON.stringify(keys.map((key) => [key, row[key]]));
@@ -93,21 +99,139 @@ function asJson(value: unknown) {
 }
 
 function notifyPending() {
-  emit("pending-count", pending.size);
+  emit("pending-count", pending.size + inserts.size + deletes.size);
+}
+
+function clearLocalChanges() {
+  pending.clear();
+  inserts.clear();
+  deletes.clear();
+  notifyPending();
+  emit("selection-count", 0);
+}
+
+function typedValue(fieldId: string, value: unknown) {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "number" || typeof value === "boolean") return value;
+  const sample = (props.result.rows ?? []).find((row) => row[fieldId] != null)?.[fieldId];
+  if (typeof sample === "number") {
+    const number = Number(value);
+    return Number.isNaN(number) ? value : number;
+  }
+  if (typeof sample === "boolean") return value === true || value === "true" || value === "t";
+  return value;
+}
+
+function syncInsert(data: Record<string, unknown>) {
+  const id = data[NEW_ROW];
+  if (typeof id !== "string" || !props.tableName) return false;
+  const values: [string, unknown][] = [];
+  for (const field of props.result.fields ?? []) {
+    const value = typedValue(field.id, data[field.id]);
+    if (value === null) continue;
+    values.push([field.name, value]);
+  }
+  if (!values.length) inserts.delete(id);
+  else {
+    inserts.set(id, {
+      table: props.tableName,
+      schema: props.schema ?? null,
+      primaryKeys: [],
+      values,
+    });
+  }
+  return true;
 }
 
 function buildChanges(): TableChanges {
   return {
-    inserts: [],
+    inserts: [...inserts.values()],
     updates: [...pending.values()],
-    deletes: [],
+    deletes: [...deletes.values()],
   };
 }
 
 function discard() {
-  pending.clear();
-  notifyPending();
+  clearLocalChanges();
   void rebuild();
+}
+
+function paintRow(row: { getData: () => unknown; getElement: () => HTMLElement }) {
+  const data = row.getData() as Record<string, unknown>;
+  const element = row.getElement();
+  const fresh = typeof data[NEW_ROW] === "string";
+  element.classList.toggle("row-new", fresh);
+  element.classList.toggle("row-deleted", deletes.has(fresh ? String(data[NEW_ROW]) : rowKey(data)));
+}
+
+function selectedRows() {
+  if (!table) return [];
+  const rows = [];
+  const seen = new Set<string>();
+  for (const range of table.getRanges()) {
+    for (const row of range.getRows()) {
+      const data = row.getData() as Record<string, unknown>;
+      const key = rowKey(data);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rows.push(row);
+    }
+  }
+  return rows;
+}
+
+function refreshSelection() {
+  emit("selection-count", selectedRows().length);
+}
+
+async function addDataRow() {
+  if (!table || !props.tableName || !props.editable) return;
+  const id = `new-${++insertSeq}`;
+  const record: Record<string, unknown> = { [NEW_ROW]: id };
+  for (const field of props.result.fields ?? []) record[field.id] = null;
+  originals.set(id, { ...record });
+  const row = await table.addRow(record);
+  paintRow(row);
+  try {
+    await row.scrollTo();
+  } catch {
+    // The new row stays in the grid when the scroll fails.
+  }
+  const cell = row.getCells().find((item) => String(item.getField()) !== ROW_HEADER);
+  cell?.edit();
+}
+
+function deleteDataRows() {
+  if (!table || !props.tableName || !props.editable) return;
+  for (const row of selectedRows()) {
+    const data = row.getData() as Record<string, unknown>;
+    if (typeof data[NEW_ROW] === "string") {
+      inserts.delete(data[NEW_ROW]);
+      originals.delete(data[NEW_ROW]);
+      void row.delete();
+      continue;
+    }
+    const key = rowKey(data);
+    if (deletes.has(key)) {
+      deletes.delete(key);
+      paintRow(row);
+      continue;
+    }
+    const original = originals.get(key);
+    if (!original) continue;
+    const primaryKeys = (props.primaryKeys ?? []).map((column) => [column, original[column]] as [string, unknown]);
+    if (!primaryKeys.length || primaryKeys.some(([, value]) => value === null || value === undefined)) continue;
+    pending.delete(key);
+    deletes.set(key, {
+      table: props.tableName,
+      schema: props.schema ?? null,
+      primaryKeys,
+      values: [],
+    });
+    paintRow(row);
+  }
+  notifyPending();
+  refreshSelection();
 }
 
 function stopSizing() {
@@ -206,9 +330,24 @@ function remember(rows: Record<string, unknown>[]) {
 }
 
 function currentStructureKey() {
-  const fields = (props.result.fields ?? []).map((field) => field.id).join(",");
+  const fields = (props.result.fields ?? [])
+    .map((field) => `${field.id}:${(field.enumValues ?? []).join("\u001f")}`)
+    .join(",");
   const keys = (props.primaryKeys ?? []).join(",");
   return `${fields}|${props.tableName ?? ""}|${props.editable}|${keys}`;
+}
+
+function canEditCell(cell: CellComponent, isPk: boolean) {
+  const data = cell.getRow().getData() as Record<string, unknown>;
+  if (typeof data[NEW_ROW] === "string") return true;
+  return !isPk;
+}
+
+function columnEditor(values: string[] | null | undefined, canEdit: boolean, isPk: boolean) {
+  if (!canEdit) return { editor: false as const, editable: false as const };
+  const editable = (cell: CellComponent) => canEditCell(cell, isPk);
+  if (values?.length) return { editor: false as const, editable };
+  return { editor: "input" as const, editable };
 }
 
 function cellText(value: unknown) {
@@ -254,6 +393,7 @@ const menu = reactive({
   open: false,
   x: 0,
   y: 0,
+  kind: "column" as "column" | "enum",
   options: [] as MenuOption[],
 });
 let menuColumn: ColumnComponent | null = null;
@@ -375,6 +515,27 @@ function cellFromEvent(target: EventTarget | null) {
   return null;
 }
 
+function enumValuesFor(field: string) {
+  return (props.result.fields ?? []).find((item) => item.id === field || item.name === field)?.enumValues ?? [];
+}
+
+function onGridDblClick(event: MouseEvent) {
+  if (props.active === false || !table) return;
+  const cell = cellFromEvent(event.target);
+  if (!cell || isRowHeader(cell.getColumn())) return;
+  const column = cell.getColumn();
+  const editable = column.getDefinition().editable;
+  if (typeof editable === "function" ? !editable(cell) : !editable) return;
+  const values = enumValuesFor(String(cell.getField()));
+  if (!values.length) return;
+  event.preventDefault();
+  event.stopPropagation();
+  menu.kind = "enum";
+  menuColumn = column;
+  menuCell = cell;
+  placeMenu(event, enumOptions(cell, values));
+}
+
 function onGridMenu(event: MouseEvent) {
   if (props.active === false || !table) return;
   const column = columnFromEvent(event.target);
@@ -388,12 +549,8 @@ function onGridMenu(event: MouseEvent) {
   }
   menuCell = cell;
   if (!menuColumn) return;
-  menu.options = menuOptions();
-  const width = 320;
-  const height = menu.options.length * 32;
-  menu.x = Math.max(8, Math.min(event.clientX, window.innerWidth - width));
-  menu.y = Math.max(8, Math.min(event.clientY, window.innerHeight - height));
-  menu.open = true;
+  menu.kind = "column";
+  placeMenu(event, menuOptions());
 }
 
 function resizeAll(width: number | boolean) {
@@ -409,8 +566,31 @@ function resizeAll(width: number | boolean) {
   }
 }
 
+function placeMenu(event: MouseEvent, options: MenuOption[]) {
+  const width = 320;
+  const height = Math.min(options.length * 32, Math.round(window.innerHeight * 0.7));
+  menu.options = options;
+  menu.x = Math.max(8, Math.min(event.clientX, window.innerWidth - width));
+  menu.y = Math.max(8, Math.min(event.clientY, window.innerHeight - height));
+  menu.open = true;
+}
+
+function enumOptions(cell: CellComponent, values: string[]) {
+  const current = cell.getValue();
+  return values.map((value) => ({
+    name: value,
+    slug: value,
+    icon: current === value ? "check" : undefined,
+  }));
+}
+
 function onMenuPick(option: MenuOption) {
   menu.open = false;
+  if (menu.kind === "enum") {
+    menu.kind = "column";
+    if (option.name != null && menuCell) menuCell.setValue(option.name, true);
+    return;
+  }
   const slug = option.slug;
   if (!slug || !menuColumn || !table) return;
   if (slug === "null") {
@@ -497,8 +677,7 @@ async function refreshRows() {
   if (!current) return;
   const rows = cloneRows();
   remember(rows);
-  pending.clear();
-  notifyPending();
+  clearLocalChanges();
   try {
     await current.replaceData(rows);
   } catch {
@@ -543,8 +722,7 @@ async function rebuild() {
   table = null;
   structureKey = "";
   originals.clear();
-  pending.clear();
-  notifyPending();
+  clearLocalChanges();
   const fieldsReady = props.result.fields ?? [];
   if (!fieldsReady.length) return;
   await nextTick();
@@ -564,8 +742,7 @@ async function rebuild() {
         title: field.name,
         field: field.id,
         headerSort: true,
-        editor: canEdit && !isPk ? "input" : false,
-        editable: canEdit && !isPk,
+        ...columnEditor(field.enumValues, canEdit, isPk),
       };
     }),
     layout: "fitDataFill",
@@ -594,6 +771,7 @@ async function rebuild() {
     headerSortClickElement: "icon",
     editTriggerEvent: "dblclick",
     placeholder: "0 linhas. Esta tabela está vazia.",
+    rowFormatter: (row) => paintRow(row),
     clipboard: "copy",
     clipboardCopyRowRange: "range",
     clipboardCopyConfig: { columnHeaders: false, rowHeaders: false },
@@ -605,6 +783,8 @@ async function rebuild() {
     watchSize(el, token);
     paintUntilVisible(el, token);
     table?.on("scrollVertical", () => checkEnd());
+    table?.on("rangeChanged", () => refreshSelection());
+    refreshSelection();
   });
   table.on("cellClick", (_event, cell) => {
     if (isRowHeader(cell.getColumn())) return;
@@ -618,7 +798,13 @@ async function rebuild() {
   table.on("cellEdited", (cell) => {
     if (!props.tableName) return;
     const data = cell.getRow().getData() as Record<string, unknown>;
+    if (syncInsert(data)) {
+      cell.getElement().classList.toggle("cell-edited", cell.getValue() != null && cell.getValue() !== "");
+      notifyPending();
+      return;
+    }
     const key = rowKey(data);
+    if (deletes.has(key)) return;
     const original = originals.get(key);
     if (!original) return;
     const field = String(cell.getField());
@@ -715,5 +901,5 @@ onBeforeUnmount(() => {
   table?.destroy();
 });
 
-defineExpose({ buildChanges, discard });
+defineExpose({ buildChanges, discard, addDataRow, deleteDataRows });
 </script>

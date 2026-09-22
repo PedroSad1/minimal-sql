@@ -9,6 +9,7 @@
         TableColumn, TableIndex, TableOrView, TableResult, TableTrigger,
     };
     use serde_json::{json, Value};
+    use tokio_postgres::types::{FromSql, Kind, Type};
     use tokio_postgres::{NoTls, Row, SimpleQueryMessage};
 
     use crate::params::SqlVal;
@@ -189,6 +190,7 @@
             Ok(TableResult {
                 columns: result.columns,
                 rows: result.rows,
+                enum_values: result.enum_values,
                 total,
             })
         }
@@ -445,7 +447,9 @@
                     .query(&stmt, &refs)
                     .await
                     .map_err(|e| GraphiteError::msg(e.to_string()))?;
-                Ok(vec![rows_to_result(stmt.columns(), &rows)])
+                let mut result = rows_to_result(stmt.columns(), &rows);
+                result.enum_values = load_enum_labels(client, stmt.columns(), &result.enum_values).await;
+                Ok(vec![result])
             }
             Err(_) => {
                 let n = client
@@ -457,6 +461,7 @@
                     rows: vec![vec![json!(n)]],
                     row_count: 1,
                     truncated: false,
+                    enum_values: Vec::new(),
                 }])
             }
         }
@@ -478,6 +483,7 @@
                     truncated,
                     columns: cols,
                     rows: std::mem::take(rows),
+                    enum_values: Vec::new(),
                 });
             }
         };
@@ -502,6 +508,7 @@
                             rows: vec![vec![json!(count)]],
                             row_count: 1,
                             truncated: false,
+                            enum_values: Vec::new(),
                         });
                     }
                 }
@@ -515,6 +522,7 @@
                 rows: vec![vec![json!("ok")]],
                 row_count: 1,
                 truncated: false,
+                enum_values: Vec::new(),
             });
         }
         results
@@ -536,6 +544,7 @@
             truncated: rows.len() > 5000,
             columns: names,
             rows: out,
+            enum_values: columns.iter().map(|column| labels_for(column.type_())).collect(),
         }
     }
 
@@ -590,5 +599,119 @@
                 bytes.iter().map(|b| format!("{b:02x}")).collect::<String>()
             )));
         }
+        if let Ok(v) = row.try_get::<_, Option<PgLabel>>(i) {
+            return json!(v.map(|label| label.0));
+        }
         Value::Null
+    }
+
+    struct PgLabel(String);
+
+    impl<'a> FromSql<'a> for PgLabel {
+        fn from_sql(
+            _ty: &Type,
+            raw: &'a [u8],
+        ) -> std::result::Result<Self, Box<dyn std::error::Error + Sync + Send>> {
+            let text = std::str::from_utf8(raw)?;
+            Ok(PgLabel(text.to_string()))
+        }
+
+        fn accepts(ty: &Type) -> bool {
+            enum_label(ty)
+        }
+    }
+
+    fn enum_label(ty: &Type) -> bool {
+        labels_for(ty).is_some()
+    }
+
+    fn labels_for(ty: &Type) -> Option<Vec<String>> {
+        match ty.kind() {
+            Kind::Enum(values) if !values.is_empty() => Some(values.clone()),
+            Kind::Domain(inner) => labels_for(inner),
+            _ => None,
+        }
+    }
+
+    async fn load_enum_labels(
+        client: &tokio_postgres::Client,
+        columns: &[tokio_postgres::Column],
+        current: &[Option<Vec<String>>],
+    ) -> Vec<Option<Vec<String>>> {
+        let mut out = current.to_vec();
+        out.resize(columns.len(), None);
+        let mut missing = Vec::new();
+        for (index, column) in columns.iter().enumerate() {
+            if out[index].as_ref().is_some_and(|labels| !labels.is_empty()) {
+                continue;
+            }
+            let ty = column.type_();
+            if let Some(labels) = labels_for(ty) {
+                out[index] = Some(labels);
+                continue;
+            }
+            if ty.schema() != "pg_catalog" {
+                missing.push((index, ty.oid()));
+            }
+        }
+        if missing.is_empty() {
+            return out;
+        }
+        let ids = missing
+            .iter()
+            .map(|(_, oid)| oid.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        let sql = format!(
+            "SELECT enumtypid, enumlabel FROM pg_catalog.pg_enum WHERE enumtypid IN ({ids}) ORDER BY enumtypid, enumsortorder"
+        );
+        let Ok(rows) = client.query(&sql, &[]).await else {
+            return out;
+        };
+        let mut grouped: std::collections::HashMap<u32, Vec<String>> = std::collections::HashMap::new();
+        for row in rows {
+            let Ok(oid) = row.try_get::<_, u32>(0) else {
+                continue;
+            };
+            let Ok(label) = row.try_get::<_, String>(1) else {
+                continue;
+            };
+            grouped.entry(oid).or_default().push(label);
+        }
+        for (index, oid) in missing {
+            if let Some(labels) = grouped.get(&oid) {
+                if !labels.is_empty() {
+                    out[index] = Some(labels.clone());
+                }
+            }
+        }
+        out
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn enum_label_decodes_as_text() {
+            let ty = Type::new(
+                "status".into(),
+                16_384,
+                Kind::Enum(vec!["open".into(), "closed".into()]),
+                "public".into(),
+            );
+            assert!(<PgLabel as FromSql>::accepts(&ty));
+            assert!(!<&str as FromSql>::accepts(&ty));
+            assert_eq!(
+                labels_for(&ty).as_deref(),
+                Some(["open".to_string(), "closed".to_string()].as_slice())
+            );
+            let label = PgLabel::from_sql(&ty, b"open").unwrap();
+            assert_eq!(label.0, "open");
+
+            let domain = Type::new("status_d".into(), 16_385, Kind::Domain(ty), "public".into());
+            assert!(<PgLabel as FromSql>::accepts(&domain));
+            let through = PgLabel::from_sql(&domain, b"closed").unwrap();
+            assert_eq!(through.0, "closed");
+        }
     }

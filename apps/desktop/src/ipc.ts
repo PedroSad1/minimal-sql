@@ -36,6 +36,7 @@ export interface FieldDescriptor {
   name: string;
   id: string;
   dataType?: string | null;
+  enumValues?: string[] | null;
 }
 
 export interface NgQueryResult {

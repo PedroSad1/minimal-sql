@@ -144,6 +144,10 @@
               :result="tab.result"
               :error="tab.error"
               :busy="tab.busy"
+              :entities="entitiesFor(tab.connectionId)"
+              :connection-type="connectionTypeFor(tab.connectionId)"
+              :connection-id="tab.connectionId"
+              :prepare-connection="prepareConnection"
               @run="$emit('run')"
               @update:sql="$emit('update:sql', $event)"
               @copy-sql="$emit('copy-sql')"
@@ -364,6 +368,24 @@ function toggleSchema(id: string, schema: string) {
   if (next.has(key)) next.delete(key);
   else next.add(key);
   collapsed.value = next;
+}
+
+function entitiesFor(id: string | null) {
+  if (!id) return [];
+  const catalog = props.catalogs[id];
+  if (catalog) return [...catalog.tables, ...catalog.views];
+  if (id === props.activeConnectionId) return [...props.tables, ...props.views];
+  return [];
+}
+
+function connectionTypeFor(id: string | null) {
+  const item = props.saved.find((entry) => entry.id === id);
+  const payload = item?.payload;
+  if (payload && typeof payload === "object" && "connectionType" in payload) {
+    const value = (payload as { connectionType?: unknown }).connectionType;
+    if (typeof value === "string" && value) return value;
+  }
+  return "postgresql";
 }
 
 function catalogEntities(id: string) {

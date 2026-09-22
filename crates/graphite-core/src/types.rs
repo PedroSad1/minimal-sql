@@ -112,6 +112,9 @@ pub struct QueryResult {
     pub rows: Vec<Vec<serde_json::Value>>,
     pub row_count: usize,
     pub truncated: bool,
+    /// One entry per column. `Some` holds the enum labels for that column.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub enum_values: Vec<Option<Vec<String>>>,
 }
 
 /// Community `FieldDescriptor` (`apps/studio/src/lib/db/models.ts`).
@@ -121,6 +124,8 @@ pub struct FieldDescriptor {
     pub name: String,
     pub id: String,
     pub data_type: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enum_values: Option<Vec<String>>,
 }
 
 /// Community `NgQueryResult`. Rows are objects keyed by field id.
@@ -139,7 +144,14 @@ pub struct NgQueryResult {
 
 impl From<QueryResult> for NgQueryResult {
     fn from(result: QueryResult) -> Self {
-        tabular_to_ng(result.columns, result.rows, result.row_count, result.truncated, None)
+        tabular_to_ng(
+            result.columns,
+            result.rows,
+            result.row_count,
+            result.truncated,
+            None,
+            result.enum_values,
+        )
     }
 }
 
@@ -151,6 +163,7 @@ impl From<TableResult> for NgQueryResult {
             result.total.max(0) as usize,
             false,
             Some(result.total.max(0) as usize),
+            result.enum_values,
         )
     }
 }
@@ -171,11 +184,17 @@ impl From<NgQueryResult> for QueryResult {
                 other => vec![other],
             })
             .collect();
+        let enum_values = result
+            .fields
+            .iter()
+            .map(|field| field.enum_values.clone())
+            .collect();
         QueryResult {
             columns,
             rows,
             row_count: result.row_count,
             truncated: result.truncated,
+            enum_values,
         }
     }
 }
@@ -186,13 +205,16 @@ fn tabular_to_ng(
     row_count: usize,
     truncated: bool,
     total_row_count: Option<usize>,
+    enum_values: Vec<Option<Vec<String>>>,
 ) -> NgQueryResult {
     let fields: Vec<FieldDescriptor> = columns
         .iter()
-        .map(|name| FieldDescriptor {
+        .enumerate()
+        .map(|(index, name)| FieldDescriptor {
             name: name.clone(),
             id: name.clone(),
             data_type: None,
+            enum_values: enum_values.get(index).cloned().flatten(),
         })
         .collect();
     let objects = rows
@@ -272,6 +294,8 @@ pub struct TableResult {
     pub columns: Vec<String>,
     pub rows: Vec<Vec<serde_json::Value>>,
     pub total: i64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub enum_values: Vec<Option<Vec<String>>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -330,17 +354,26 @@ mod tests {
     #[test]
     fn query_result_becomes_community_ng_objects() {
         let raw = QueryResult {
-            columns: vec!["id".into(), "name".into()],
-            rows: vec![vec![json!(1), json!("a")]],
+            columns: vec!["id".into(), "name".into(), "status".into()],
+            rows: vec![vec![json!(1), json!("a"), json!("open")]],
             row_count: 1,
             truncated: false,
+            enum_values: vec![None, None, Some(vec!["open".into(), "closed".into()])],
         };
         let ng = NgQueryResult::from(raw);
         assert_eq!(ng.fields[0].id, "id");
         assert_eq!(ng.rows[0]["name"], json!("a"));
+        assert_eq!(
+            ng.fields[2].enum_values.as_deref(),
+            Some(["open".to_string(), "closed".to_string()].as_slice())
+        );
         assert_eq!(ng.command.as_deref(), Some("SELECT"));
         let back = QueryResult::from(ng);
-        assert_eq!(back.columns, vec!["id", "name"]);
+        assert_eq!(back.columns, vec!["id", "name", "status"]);
         assert_eq!(back.rows[0][1], json!("a"));
+        assert_eq!(
+            back.enum_values[2].as_deref(),
+            Some(["open".to_string(), "closed".to_string()].as_slice())
+        );
     }
 }

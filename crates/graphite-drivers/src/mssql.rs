@@ -144,6 +144,7 @@ impl DatabaseClient for MssqlClient {
             total: result.row_count as i64,
             columns: result.columns,
             rows: result.rows,
+            enum_values: result.enum_values,
         })
     }
 
@@ -279,6 +280,7 @@ fn mssql_result(rows: Vec<tiberius::Row>) -> QueryResult {
         truncated: false,
         columns,
         rows: out,
+        enum_values: Vec::new(),
     }
 }
 
