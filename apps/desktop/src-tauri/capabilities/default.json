@@ -6,6 +6,8 @@
     "core:default",
     "dialog:default",
     "clipboard-manager:default",
+    "updater:default",
+    "process:default",
     "core:window:allow-set-position",
     "core:window:allow-set-size",
     "core:window:allow-unminimize",

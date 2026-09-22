@@ -3,8 +3,8 @@
       <div class="interface-wrap">
       <aside v-if="!bare" class="sidebar connection-sidebar">
         <div class="sidebar-heading">
-          <span class="sub">conexões salvas</span>
-          <button class="btn btn-fab" type="button" title="nova conexão" @click="createBlank">
+          <span class="sub">saved connections</span>
+          <button class="btn btn-fab" type="button" title="New connection" @click="createBlank">
             <i class="material-icons">add</i>
           </button>
         </div>
@@ -16,7 +16,7 @@
         <div class="small-wrap">
           <div v-if="!form.connectionType" class="empty-state">
             <h3>Welcome to Minimal SQL</h3>
-            <p>Start by adding new connection.</p>
+            <p>Start by adding a connection.</p>
             <div class="actions">
               <button class="btn btn-primary" type="button" @click="createBlank">
                 <i class="material-icons">add</i>
@@ -36,7 +36,7 @@
                 </option>
               </select>
               <template v-if="form.connectionType === 'sqlite'">
-                <label class="label">arquivo</label>
+                <label class="label">File</label>
                 <div class="row">
                   <input v-model="form.filename" class="form-control" placeholder="/tmp/app.db" />
                   <button class="btn btn-flat" type="button" @click="$emit('pick-sqlite')">
@@ -45,11 +45,11 @@
                 </div>
               </template>
               <template v-else-if="form.connectionType === 'bigquery'">
-                <label class="label">project id</label>
+                <label class="label">Project ID</label>
                 <input v-model="form.projectId" class="form-control" />
-                <label class="label">dataset</label>
+                <label class="label">Dataset</label>
                 <input v-model="form.dataset" class="form-control" />
-                <label class="label">service account json</label>
+                <label class="label">Service account JSON</label>
                 <input v-model="form.serviceAccountJson" class="form-control" />
               </template>
               <template v-else>

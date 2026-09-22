@@ -4,7 +4,7 @@
       class="json-resize"
       role="separator"
       aria-orientation="vertical"
-      aria-label="Redimensionar JSON viewer"
+      aria-label="Resize JSON viewer"
       @pointerdown="startResize"
     ></div>
     <div class="sidebar-heading">
@@ -19,7 +19,7 @@
       />
     </div>
     <div v-show="empty" class="empty-text">
-      Clique numa coluna JSON ou JSONB para abrir o valor.
+      Click a JSON or JSONB column to open the value.
     </div>
     <div v-show="!empty" ref="host" class="json-editor"></div>
   </aside>

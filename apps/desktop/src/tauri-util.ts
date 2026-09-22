@@ -75,7 +75,7 @@ export async function send<T = unknown>(
   payload: Record<string, unknown> = {},
 ): Promise<T> {
   if (UNSUPPORTED_CHANNELS.has(channel)) {
-    throw new Error("não suportado");
+    throw new Error("not supported");
   }
   if (EMPTY_LIST_CHANNELS.has(channel)) {
     return [] as T;
@@ -97,7 +97,7 @@ export async function send<T = unknown>(
 
   const command = CHANNEL_TO_COMMAND[channel];
   if (!command) {
-    throw new Error(`não suportado: ${channel}`);
+    throw new Error(`not supported: ${channel}`);
   }
 
   if (command === "conn_create") {

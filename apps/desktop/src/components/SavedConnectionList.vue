@@ -17,7 +17,7 @@
         <span class="saved-connection-meta truncate">{{ detail(item) }}</span>
       </span>
     </button>
-    <p v-if="!saved.length" class="hint">Nenhuma conexão salva.</p>
+    <p v-if="!saved.length" class="hint">No saved connections.</p>
   </div>
 </template>
 

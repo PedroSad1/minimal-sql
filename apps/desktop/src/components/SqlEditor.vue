@@ -84,7 +84,7 @@ onMounted(() => {
           icons: false,
           activateOnCompletion: (item) => typeof item.apply === "string" && item.apply.endsWith("."),
         }),
-        placeholder("escreva SQL. Cmd+Enter executa."),
+        placeholder("Write SQL. Cmd+Enter runs it."),
         Prec.highest(
           keymap.of([
             {

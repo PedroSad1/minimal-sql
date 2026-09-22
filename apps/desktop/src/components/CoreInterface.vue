@@ -3,8 +3,8 @@
     <div class="interface-wrap">
       <aside class="sidebar primary-sidebar">
         <div class="sidebar-heading">
-          <span class="sub">conexões</span>
-          <button class="btn btn-fab" type="button" title="Nova conexão" @click="$emit('add-connection')">
+          <span class="sub">connections</span>
+          <button class="btn btn-fab" type="button" title="New connection" @click="$emit('add-connection')">
             <i class="material-icons">add</i>
           </button>
         </div>
@@ -45,7 +45,7 @@
               <span class="table-name truncate">{{ item.name }}</span>
             </a>
             <template v-if="isConnectionOpen(item.id)">
-              <p v-if="connectionBusy && isActive(item) && !catalogs[item.id]" class="hint">Conectando…</p>
+              <p v-if="connectionBusy && isActive(item) && !catalogs[item.id]" class="hint">Connecting…</p>
               <div
                 v-for="group in groupsFor(item.id)"
                 :key="item.id + (group.schema || 'default')"
@@ -114,7 +114,7 @@
               </div>
             </template>
           </div>
-          <p v-if="!roots.length" class="hint">Nenhuma conexão salva.</p>
+          <p v-if="!roots.length" class="hint">No saved connections.</p>
         </div>
       </aside>
       <div class="page-content main-content">
@@ -298,7 +298,7 @@ const roots = computed(() => {
   const items = [...props.saved];
   const activeId = props.activeConnectionId;
   if (activeId && !items.some((item) => item.id === activeId)) {
-    items.unshift({ id: activeId, name: props.activeConnectionName || "conexão", payload: {} });
+    items.unshift({ id: activeId, name: props.activeConnectionName || "connection", payload: {} });
   }
   return items;
 });

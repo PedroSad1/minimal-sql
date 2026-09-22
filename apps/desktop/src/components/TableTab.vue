@@ -6,30 +6,30 @@
           v-if="index > 0"
           class="table-filter-and"
           type="button"
-          :title="row.join === 'or' ? 'Usar AND' : 'Usar OR'"
+          :title="row.join === 'or' ? 'Use AND' : 'Use OR'"
           @click="toggleJoin(index)"
         >
           {{ row.join === "or" ? "OR" : "AND" }}
         </button>
-        <select v-model="row.field" class="form-control" aria-label="Campo">
+        <select v-model="row.field" class="form-control" aria-label="Field">
           <option v-for="field in fields" :key="field" :value="field">{{ field }}</option>
         </select>
-        <select v-model="row.op" class="form-control" aria-label="Cláusula">
+        <select v-model="row.op" class="form-control" aria-label="Clause">
           <option v-for="item in operators" :key="item.value" :value="item.value">{{ item.label }}</option>
         </select>
         <input
           v-model="row.value"
           class="form-control"
           :disabled="isNullOp(row.op)"
-          :placeholder="row.op === 'in' || row.op === 'not in' ? 'a, b, c' : 'Valor'"
-          aria-label="Valor"
+          :placeholder="row.op === 'in' || row.op === 'not in' ? 'a, b, c' : 'Value'"
+          aria-label="Value"
           @keydown.enter.prevent="applyFilter"
         />
         <button
           v-if="drafts.length > 1"
           class="btn btn-fab"
           type="button"
-          title="Remover condição"
+          title="Remove condition"
           @click="removeRow(index)"
         >
           <i class="material-icons">close</i>
@@ -38,7 +38,7 @@
           v-if="index === drafts.length - 1 && fields.length > 0"
           class="btn btn-fab"
           type="button"
-          title="AND"
+          title="Add condition"
           @click="addRow"
         >
           <i class="material-icons">add</i>
@@ -71,7 +71,7 @@
     />
     <div v-if="loadingMore" class="load-more-bar" role="status">
       <i class="load-spin" aria-hidden="true"></i>
-      <span>Carregando a próxima página</span>
+      <span>Loading the next page</span>
     </div>
     <div class="statusbar">
       <span class="status-text">{{ status }}</span>
@@ -81,19 +81,19 @@
           type="number"
           min="1"
           max="1000"
-          aria-label="Itens por página"
+          aria-label="Rows per page"
           @change="commitPageSize"
           @keydown.enter.prevent="commitPageSize"
         />
-        <span>por página</span>
+        <span>per page</span>
       </label>
-      <span v-if="!editable" class="hint">sem PK: edição desligada</span>
+      <span v-if="!editable" class="hint">no primary key: editing is off</span>
       <div class="statusbar-actions">
         <button
           class="btn btn-flat btn-fab"
           type="button"
-          title="Nova linha"
-          aria-label="Nova linha"
+          title="New row"
+          aria-label="New row"
           :disabled="!editable || busy"
           @click="grid?.addDataRow()"
         >
@@ -102,8 +102,8 @@
         <button
           class="btn btn-flat btn-fab"
           type="button"
-          title="Apagar linha"
-          aria-label="Apagar linha"
+          title="Delete row"
+          aria-label="Delete row"
           :disabled="!editable || busy || selectedCount === 0"
           @click="grid?.deleteDataRows()"
         >
@@ -112,7 +112,8 @@
         <button
           class="btn btn-flat btn-fab"
           type="button"
-          title="Atualizar tabela (F5)"
+          title="Refresh table (F5)"
+          aria-label="Refresh table"
           :disabled="busy"
           @click="$emit('refresh')"
         >
@@ -243,9 +244,9 @@ const loadingMore = computed(() => props.busy && loadedCount.value > 0);
 const status = computed(() => {
   if (props.busy && loadedCount.value === 0) return "running";
   if (props.error) return "error";
-  if (props.pendingCount) return `${props.pendingCount} alterações pendentes`;
-  if (loadedCount.value < totalCount.value) return `${loadedCount.value} de ${totalCount.value} linhas`;
-  return `${totalCount.value} linhas`;
+  if (props.pendingCount) return `${props.pendingCount} pending changes`;
+  if (loadedCount.value < totalCount.value) return `${loadedCount.value} of ${totalCount.value} rows`;
+  return `${totalCount.value} rows`;
 });
 
 function commitPageSize(event: Event) {

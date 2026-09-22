@@ -7,3 +7,5 @@
 *.db
 .env
 .graphite-app.db
+*.key
+*.password

@@ -770,7 +770,7 @@ async function rebuild() {
     selectableRangeInitializeDefault: false,
     headerSortClickElement: "icon",
     editTriggerEvent: "dblclick",
-    placeholder: "0 linhas. Esta tabela está vazia.",
+    placeholder: "0 rows. This table is empty.",
     rowFormatter: (row) => paintRow(row),
     clipboard: "copy",
     clipboardCopyRowRange: "range",

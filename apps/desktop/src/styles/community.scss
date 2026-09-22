@@ -50,6 +50,13 @@
   -webkit-app-region: no-drag;
 }
 
+.titlebar-update {
+  height: 1.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  color: var(--text-dark);
+}
+
 .interface {
   position: relative;
   display: flex;

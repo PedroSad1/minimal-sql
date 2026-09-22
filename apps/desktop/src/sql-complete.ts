@@ -172,7 +172,7 @@ export function createSqlCompletion(input: {
       apply: `${label} `,
       type: "keyword",
       boost: 0,
-      section: section("Cláusulas", rank),
+      section: section("Clauses", rank),
     }));
   }
 
@@ -194,7 +194,7 @@ export function createSqlCompletion(input: {
         type: "type",
         detail: view ? "view" : schemas.length > 1 ? schema : undefined,
         boost: 8,
-        section: section("Tabelas", rank),
+        section: section("Tables", rank),
       };
     });
     if (withSchemas && schemas.length > 1) {
@@ -205,7 +205,7 @@ export function createSqlCompletion(input: {
           type: "namespace",
           detail: "schema",
           boost: 4,
-          section: section("Tabelas", rank),
+          section: section("Tables", rank),
         });
       }
     }
@@ -249,7 +249,7 @@ export function createSqlCompletion(input: {
           type: "property",
           detail: many ? `${group.label} · ${column.dataType}` : column.dataType,
           boost: 12,
-          section: section("Campos", rank),
+          section: section("Fields", rank),
         });
       }
     }
@@ -266,7 +266,7 @@ export function createSqlCompletion(input: {
         type: "constant",
         detail: ref.schema ? `${ref.schema}.${ref.name}` : ref.name,
         boost: 6,
-        section: section("Tabelas", rank),
+        section: section("Tables", rank),
       });
     }
     return options;

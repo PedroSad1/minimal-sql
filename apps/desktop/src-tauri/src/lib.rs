@@ -409,10 +409,13 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_process::init())
         .manage(AppState::new())
         .setup(|app| {
             use tauri::Manager;
             use tauri::menu::{MenuBuilder, SubmenuBuilder};
+            app.handle()
+                .plugin(tauri_plugin_updater::Builder::new().build())?;
             if let Some(win) = app.get_webview_window("main") {
                 let win = win.clone();
                 tauri::async_runtime::spawn(async move {
@@ -424,12 +427,12 @@ pub fn run() {
                     let _ = win.set_focus();
                 });
             }
-            let file_menu = SubmenuBuilder::new(app, "Arquivo")
-                .text("open-sqlite", "Abrir SQLite…")
+            let file_menu = SubmenuBuilder::new(app, "File")
+                .text("open-sqlite", "Open SQLite…")
                 .separator()
                 .quit()
                 .build()?;
-            let edit_menu = SubmenuBuilder::new(app, "Editar")
+            let edit_menu = SubmenuBuilder::new(app, "Edit")
                 .copy()
                 .paste()
                 .select_all()

@@ -63,15 +63,27 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: apps/desktop
           tagName: v__VERSION__
           releaseName: Minimal SQL v__VERSION__
           releaseBody: |
-            Open the file for your system. A terminal is not required.
+            Since 0.1.2 the interface is in English. An Update button appears when a newer release exists. From this version, Update downloads the new app, installs it, and restarts.
+
+            Install:
             - macOS: open the .dmg and drag Minimal SQL to Applications.
             - Windows: open the setup .exe.
-            - Linux: open the .deb on Ubuntu or Debian, or open the AppImage.
+            - Linux: open the .deb on Ubuntu or Debian, or open the AppImage. Automatic update uses the AppImage.
+
+            Desde a 0.1.2 a interface está em inglês. O botão Update aparece quando existe uma release mais nova. A partir desta versão, Update baixa o app novo, instala e reabre o programa.
+
+            Instalar:
+            - macOS: abra o .dmg e arraste Minimal SQL para Applications.
+            - Windows: abra o setup .exe.
+            - Linux: abra o .deb no Ubuntu ou Debian, ou abra o AppImage. A atualização automática usa o AppImage.
           releaseDraft: true
           prerelease: false
+          updaterJsonPreferNsis: true
           args: ${{ matrix.args }}

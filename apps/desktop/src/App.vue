@@ -4,8 +4,12 @@
       :title="windowTitle"
       :connected="Boolean(sessionId)"
       :json-sidebar-open="jsonSidebarOpen"
+      :update-version="updateVersion"
+      :updating="updating"
+      :update-error="updateError"
       @cycle-theme="cycleTheme"
       @toggle-json="jsonSidebarOpen = !jsonSidebarOpen"
+      @open-update="openUpdate"
     />
     <CoreInterface
       ref="core"
@@ -21,7 +25,7 @@
       :catalogs="catalogs"
       :prepare-connection="prepareConnection"
       :active-connection-id="selectedSavedId"
-      :active-connection-name="form.name || form.host || 'conexão'"
+      :active-connection-name="form.name || form.host || 'connection'"
       :connection-error="error"
       :connection-busy="busy"
       :connected="Boolean(sessionId)"
@@ -51,8 +55,8 @@
     <div v-if="editor.open" class="modal-backdrop" @click.self="editor.open = false">
       <div class="connection-modal" role="dialog" aria-modal="true">
         <div class="connection-modal-head">
-          <h3>{{ editor.mode === "edit" ? "Editar conexão" : "Nova conexão" }}</h3>
-          <button class="btn btn-fab" type="button" title="Fechar" @click="editor.open = false">
+          <h3>{{ editor.mode === "edit" ? "Edit connection" : "New connection" }}</h3>
+          <button class="btn btn-fab" type="button" title="Close" @click="editor.open = false">
             <i class="material-icons">close</i>
           </button>
         </div>
@@ -83,6 +87,8 @@
 </template>
 
 <script setup lang="ts">
+import { relaunch } from "@tauri-apps/plugin-process";
+import { check } from "@tauri-apps/plugin-updater";
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import Titlebar from "./components/Titlebar.vue";
 import ConnectionInterface from "./components/ConnectionInterface.vue";
@@ -124,6 +130,10 @@ import { readTablePageSize, writeTablePageSize } from "./table-page";
 
 const themes = ["dark", "light", "system"] as const;
 const theme = ref<(typeof themes)[number]>("dark");
+const updateVersion = ref<string | null>(null);
+const updating = ref(false);
+const updateError = ref<string | null>(null);
+let availableUpdate: Awaited<ReturnType<typeof check>> = null;
 const sessionId = ref<string | null>(null);
 const sessions = new Map<string, string>();
 const tablesWithKeys = new WeakSet<WorkspaceTab>();
@@ -183,11 +193,38 @@ let unlistenMenu: (() => void) | undefined;
 
 onMounted(async () => {
   applyTheme();
+  void checkUpdate();
   saved.value = await ipc.savedFind();
   unlistenMenu = await onOpenSqlite(() => {
     void pickSqlite();
   });
 });
+
+async function checkUpdate() {
+  try {
+    const update = await check();
+    if (!update) return;
+    availableUpdate = update;
+    updateVersion.value = update.version;
+    updateError.value = null;
+  } catch {
+    return;
+  }
+}
+
+async function openUpdate() {
+  const update = availableUpdate;
+  if (!update || updating.value) return;
+  updating.value = true;
+  updateError.value = null;
+  try {
+    await update.downloadAndInstall();
+    await relaunch();
+  } catch (error) {
+    updating.value = false;
+    updateError.value = error instanceof Error ? error.message : "Update failed";
+  }
+}
 
 onUnmounted(() => {
   unlistenMenu?.();
@@ -312,7 +349,7 @@ async function persistEditor() {
   const id = editor.mode === "edit" && editor.id ? editor.id : crypto.randomUUID();
   const record = await ipc.savedSave({
     id,
-    name: form.name || form.host || "conexão",
+    name: form.name || form.host || "connection",
     payload: payloadFromForm(id),
   });
   editor.id = record.id;
@@ -544,7 +581,7 @@ function adopt(tab: WorkspaceTab, afterId?: string) {
 function connectionContext() {
   return {
     id: selectedSavedId.value,
-    name: form.name || form.host || "conexão",
+    name: form.name || form.host || "connection",
   };
 }
 
@@ -727,7 +764,7 @@ function tableOrder(tab: WorkspaceTab) {
 }
 
 async function fetchTablePage(tab: WorkspaceTab, offset: number, skipCount: boolean) {
-  if (!tab.table) throw new Error("tabela ausente");
+  if (!tab.table) throw new Error("missing table");
   return ipc.selectTop({
     table: tab.table.name,
     schema: tab.table.schema ?? null,
